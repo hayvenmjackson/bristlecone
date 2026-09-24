@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Bristlecone</title>
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="map" aria-label="Map"></div>
+
+<!-- Splash -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <img src="img/mark.svg" alt="" class="splash-mark">
+    <h1 class="wordmark">Bristlecone</h1>
+    <p class="tagline" data-i18n="app.tagline">Know the ground.</p>
+    <div class="splash-note"><span class="eyebrow" data-i18n="note.label">Field note</span><p id="splash-note"></p></div>
+  </div>
+</div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="search">
+    <img src="img/mark.svg" alt="" class="search-mark">
+    <input id="search" type="search" autocomplete="off" data-i18n-ph="search.placeholder" enterkeyhint="search">
+    <button id="search-clear" class="icon-btn hidden" aria-label="Clear"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div id="search-results" class="search-results hidden"></div>
+  <div id="loadbar" class="loadbar"><span></span></div>
+  <button id="loc-chip" class="loc-chip hidden"><span class="dot"></span><span id="loc-chip-text"></span></button>
+  <div id="estimate-banner" class="estimate-banner hidden" role="status">
+    <strong id="est-title"></strong>
+    <span id="est-sub"></span>
+  </div>
+</header>
+
+<!-- Map buttons -->
+<div class="fabs">
+  <button id="btn-layers" class="fab" data-i18n-aria="layers.title"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+  <button id="btn-north" class="fab hidden" aria-label="North"><svg viewBox="0 0 24 24" id="north-icon"><path d="M12 3l4 9h-8l4-9z" class="n"/><path d="M12 21l-4-9h8l-4 9z"/></svg></button>
+  <button id="btn-locate" class="fab fab-primary" data-i18n-aria="loc.searching"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+</div>
+
+<!-- Bottom navigation -->
+<nav class="bottomnav">
+  <button data-tab="map" class="active"><svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n="nav.map">Map</span></button>
+  <button data-tab="conditions"><svg viewBox="0 0 24 24"><path d="M4 18h16M6 14l3-4 3 3 4-6 2 3"/><circle cx="18" cy="5" r="1.5"/></svg><span data-i18n="nav.conditions">Conditions</span></button>
+  <button data-tab="offline"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/></svg><span data-i18n="nav.offline">Offline</span></button>
+  <button data-tab="places"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-11a6 6 0 1112 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg><span data-i18n="nav.places">Places</span></button>
+  <button data-tab="more"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span data-i18n="nav.more">Settings</span></button>
+</nav>
+
+<!-- Sheets -->
+<div id="scrim" class="scrim hidden"></div>
+<section id="sheet" class="sheet hidden" aria-live="polite">
+  <div class="grabber"></div>
+  <div id="sheet-body" class="sheet-body"></div>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="lib/maplibre-gl.js"></script>
+<script src="lib/maplibre-contour.min.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/sun.js"></script>
+<script src="js/native.js"></script>
+<script src="js/style.js"></script>
+<script src="js/data.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/offline.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

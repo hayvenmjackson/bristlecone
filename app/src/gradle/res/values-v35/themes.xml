@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep system bar colors on Android 15 (targetSdk 35). -->
+    <style name="BristleconeTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash</item>
+        <item name="android:statusBarColor">#0F3D2E</item>
+        <item name="android:navigationBarColor">#0F3D2E</item>
+        <item name="android:colorPrimary">#0F3D2E</item>
+        <item name="android:colorPrimaryDark">#0F3D2E</item>
+        <item name="android:colorAccent">#C9A227</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>
