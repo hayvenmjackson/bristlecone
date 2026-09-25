@@ -8,9 +8,11 @@
 
   const strip = (html) => {
     if (!html) return '';
-    const d = document.createElement('div');
-    d.innerHTML = String(html).replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n');
-    return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+    // DOMParser builds an inert document: no scripts run and no images load, unlike
+    // assigning remote HTML to an element's innerHTML (which fires onerror handlers).
+    const src = String(html).replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n');
+    const doc = new DOMParser().parseFromString(src, 'text/html');
+    return ((doc.body && doc.body.textContent) || '').replace(/\n{3,}/g, '\n\n').trim();
   };
   const toTime = (v) => { if (!v) return null; if (typeof v === 'number') return v < 1e12 ? v * 1000 : v; const t = Date.parse(v); return isNaN(t) ? null : t; };
 

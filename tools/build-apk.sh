@@ -16,7 +16,7 @@ sed 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<ma
   "$SRC/AndroidManifest.xml" > "$OUT/AndroidManifest.xml"
 aapt package -f -m -J "$OUT/gen" -M "$OUT/AndroidManifest.xml" -S "$SRC/res" -I "$SDK" \
   -A "$SRC/assets" -F "$OUT/unsigned.apk" --min-sdk-version 26 --target-sdk-version 34 \
-  --version-code 1 --version-name 1.0.0 -0 woff2 -0 pbf
+  --version-code 2 --version-name 1.0.1 -0 woff2 -0 pbf
 
 echo "== java"
 find "$SRC/java" "$OUT/gen" -name '*.java' > "$OUT/sources.txt"

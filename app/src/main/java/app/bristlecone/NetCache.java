@@ -72,7 +72,7 @@ public final class NetCache {
         if (APP_HOST.equals(host)) return serveAsset(req.getUrl().getPath());
         if (!"GET".equalsIgnoreCase(req.getMethod())) return null;
         String scheme = req.getUrl().getScheme();
-        if (!"https".equals(scheme) && !"http".equals(scheme)) return null;
+        if (!"https".equals(scheme)) return null;
         Result r = get(url, false);
         return toResponse(r);
     }
@@ -192,7 +192,7 @@ public final class NetCache {
 
     private void write(File body, File meta, String url, Result r) {
         try {
-            File tmp = new File(body.getPath() + ".tmp");
+            File tmp = new File(body.getPath() + "." + Thread.currentThread().getId() + "." + System.nanoTime() + ".tmp");
             FileOutputStream fo = new FileOutputStream(tmp);
             fo.write(r.body);
             fo.close();

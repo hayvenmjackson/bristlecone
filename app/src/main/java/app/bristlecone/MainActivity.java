@@ -233,7 +233,17 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ Helpers
 
+    /** Only web links, map locations and email leave the app; anything else (intent:, file:, content:, javascript:) is refused. */
+    static boolean isSafeExternal(String url) {
+        if (url == null) return false;
+        String s = Uri.parse(url.trim()).getScheme();
+        if (s == null) return false;
+        s = s.toLowerCase();
+        return s.equals("https") || s.equals("http") || s.equals("geo") || s.equals("mailto");
+    }
+
     void openExternal(String url) {
+        if (!isSafeExternal(url)) return;
         try {
             Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

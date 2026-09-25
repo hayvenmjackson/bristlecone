@@ -82,6 +82,10 @@
     return d + '° ' + m + '′ ' + s + '″ ' + (v >= 0 ? pos : neg);
   }
   const coordText = (lon, lat) => lat.toFixed(5) + ', ' + lon.toFixed(5);
+  /** Hostname of an https link from a data source, or null if it is not a usable https URL. */
+  function safeHost(u) {
+    try { const x = new URL(u); return x.protocol === 'https:' ? x.hostname.replace(/^www\./, '') : null; } catch (e) { return null; }
+  }
 
   // ------------------------------------------------------------------ UI helpers
   let toastTimer;
@@ -299,7 +303,7 @@
         cells.forEach(([x, y, zz]) => {
           const k = x + '/' + y;
           const e = trailCells.get(k);
-          if (e) { e.used = Date.now(); return; }
+          if (e && !(e.state === 'failed' && Date.now() >= e.retryAt)) { e.used = Date.now(); return; }
           trailCells.set(k, { state: 'queued', used: Date.now(), trails: [], points: [] });
           trailQueue.push([x, y, zz]);
         });
@@ -359,7 +363,8 @@
         e.trails = r.trails; e.points = r.points; e.state = 'done'; e.meta = r.meta;
         rebuildTrails();
       } catch (err) {
-        trailCells.delete(k);
+        // Keep the cell as failed for a minute so a busy or rate-limited server is not hammered.
+        e.state = 'failed'; e.retryAt = Date.now() + 60000;
       } finally { setBusy(-1); }
     }
     trailRunning = false;
@@ -692,7 +697,7 @@
         '<h4>' + esc(it.title || '') + '</h4>' + (it.sub ? '<div class="r-sub">' + esc(it.sub) + '</div>' : '') +
         (it.until ? '<div class="r-sub">' + esc(t('cond.until', { t: fmtTime(it.until) })) + '</div>' : '') +
         (it.body ? '<div class="r-body">' + esc(it.body) + '</div>' : '') +
-        '<div class="r-actions">' + (it.body && it.body.length > 140 ? '<button data-more>' + esc(t('cond.read')) + '</button>' : '') + (it.url ? '<a href="#" data-ext="' + esc(it.url) + '">' + esc(new URL(it.url).hostname.replace(/^www\./, '')) + '</a>' : '') + '</div></article>';
+        '<div class="r-actions">' + (it.body && it.body.length > 140 ? '<button data-more>' + esc(t('cond.read')) + '</button>' : '') + (safeHost(it.url) ? '<a href="#" data-ext="' + esc(it.url) + '">' + esc(safeHost(it.url)) + '</a>' : '') + '</div></article>';
     });
     out += '<h3 class="section">' + esc(t('cond.sources')) + '</h3><div class="src-list">' + BcReports.SOURCES.map(id => {
       const s = res.status[id] || {};
@@ -938,17 +943,19 @@
   ];
 
   // ------------------------------------------------------------------ Search
-  let searchTimer, searchSeq = 0;
+  let searchSeq = 0;
   function initSearch() {
     const input = $('#search'), res = $('#search-results'), clr = $('#search-clear');
+    // Nominatim's usage policy does not allow search-as-you-type, so search runs on Enter only.
     input.addEventListener('input', () => {
       clr.classList.toggle('hidden', !input.value);
-      clearTimeout(searchTimer);
-      const q = input.value.trim();
-      if (q.length < 3) { res.classList.add('hidden'); return; }
-      searchTimer = setTimeout(() => doSearch(q), 450);
+      if (input.value.trim().length < 2) res.classList.add('hidden');
     });
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(searchTimer); doSearch(input.value.trim()); input.blur(); } });
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const q = input.value.trim();
+      if (q.length >= 2) { doSearch(q); input.blur(); }
+    });
     clr.onclick = () => { input.value = ''; clr.classList.add('hidden'); res.classList.add('hidden'); };
   }
   async function doSearch(q) {

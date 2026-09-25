@@ -93,12 +93,15 @@ public final class LocationEngine implements LocationListener, SensorEventListen
     public void start() {
         if (running) return;
         running = true;
+        // Registered even when a provider is switched off right now: Android starts delivering
+        // fixes as soon as the user turns it on, without an app restart.
+        java.util.List<String> all = lm.getAllProviders();
         try {
-            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER))
+            if (all.contains(LocationManager.GPS_PROVIDER))
                 lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this, Looper.getMainLooper());
         } catch (Exception ignored) { }
         try {
-            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
+            if (all.contains(LocationManager.NETWORK_PROVIDER))
                 lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 0, this, Looper.getMainLooper());
         } catch (Exception ignored) { }
         try {

@@ -22,7 +22,7 @@ public final class Bridge {
             JSONObject o = new JSONObject();
             Locale l = Locale.getDefault();
             o.put("locale", l.getLanguage() + "-" + l.getCountry());
-            o.put("version", "1.0.0");
+            o.put("version", "1.0.1");
             o.put("sdk", Build.VERSION.SDK_INT);
             o.put("barometer", a.location.hasBarometer());
             o.put("stepDetector", a.location.hasStepDetector());

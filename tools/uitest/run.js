@@ -99,7 +99,11 @@ function mock(url, method, body) {
   if (u.hostname === 'api.weather.gov') return json(nws);
   if (u.hostname === 'api.openstreetmap.org') return json(notes);
   if (u.hostname === 'nominatim.openstreetmap.org') return json(u.pathname.includes('search') ? [{ name: 'Lake Marie', display_name: 'Lake Marie, Albany County, Wyoming, United States', lat: String(C[1] - 0.012), lon: String(C[0] + 0.02), boundingbox: [String(C[1] - 0.02), String(C[1]), String(C[0]), String(C[0] + 0.04)] }] : reverse);
-  if (u.hostname === 'developer.nps.gov') return json({ data: [] });
+  if (u.hostname === 'developer.nps.gov') {
+    if (u.pathname.endsWith('/parks')) return json({ data: [{ parkCode: 'test', fullName: 'Test National Park', latitude: String(C[1]), longitude: String(C[0]) }] });
+    // Hostile alert: markup that would run script if parsed unsafely, and a javascript: link.
+    return json({ data: [{ title: 'Road closed at Lake Marie', description: '<p>Closed for repairs.</p><img src=x onerror="window.__pwned=1">', parkCode: 'test', lastIndexedDate: ago(3), category: 'Park Closure', url: 'javascript:window.__pwned=2' }] });
+  }
   if (u.hostname === 'api.avalanche.org') return json(fc([]));
   if (u.hostname === 'api.openbeta.io') return json({ data: { cragsNear: [{ count: 1, crags: [{ areaName: 'Snowy Range Crags', uuid: 'abc', totalClimbs: 42, metadata: { lat: C[1] + 0.03, lng: C[0] - 0.04 } }] }] } });
   if (u.hostname.includes('opentopomap') || u.hostname.includes('nationalmap') || u.hostname.includes('geo.ca')) return { status: 404, body: '' };
@@ -160,6 +164,8 @@ const server = http.createServer((req, res) => {
   await pg.click('[data-close]'); await wait(pg, 300);
   // 5. Conditions
   await pg.click('[data-tab="conditions"]'); await wait(pg, 2500); await shot(pg, '05-conditions');
+  const sec = await pg.evaluate(() => ({ pwned: window.__pwned || 0, closure: document.body.innerText.includes('Road closed at Lake Marie'), jsLink: !!document.querySelector('[data-ext^="javascript"]') }));
+  if (sec.pwned || !sec.closure || sec.jsLink) errors.push('SECURITY CHECK FAILED ' + JSON.stringify(sec)); else console.log('security check passed', JSON.stringify(sec));
   // 6. Offline
   await pg.click('[data-tab="offline"]'); await wait(pg, 1200); await shot(pg, '06-offline');
   // 7. Places editor via long press equivalent
