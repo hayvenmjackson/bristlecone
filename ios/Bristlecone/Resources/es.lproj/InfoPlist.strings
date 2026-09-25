@@ -1,0 +1,4 @@
+"NSLocationWhenInUseUsageDescription" = "Bristlecone muestra dónde estás en el mapa de senderos y graba las caminatas que inicias. Tu ubicación se queda en este dispositivo.";
+"NSMotionUsageDescription" = "Bristlecone cuenta tus pasos y lee el barómetro para estimar tu posición cuando se pierde el GPS y para medir el desnivel.";
+"NSHealthUpdateUsageDescription" = "Bristlecone guarda en Salud las caminatas que elijas: la ruta, la distancia y el desnivel.";
+"NSHealthShareUsageDescription" = "Bristlecone nunca lee tus datos de salud. Solo guarda las caminatas que elijas.";

@@ -22,6 +22,9 @@
   --card: #FFFFFF; --shadow: 0 6px 24px rgba(15, 61, 46, 0.18);
   --font-ui: 'Overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif; --font-read: 'Cormorant Garamond', Georgia, serif;
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
   --nav-h: 64px;
 }
 :root[data-theme="dark"] {
@@ -55,7 +58,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .eyebrow { font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
 
 /* Top bar */
-.topbar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 12px 0; z-index: 10; pointer-events: none; }
+.topbar { position: absolute; top: 0; left: 0; right: 0; padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) 0 calc(12px + var(--safe-l)); z-index: 10; pointer-events: none; }
 .topbar > * { pointer-events: auto; }
 .search { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 0 6px 0 10px; height: 48px; border: 1px solid var(--line); }
 .search-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--grad); padding: 3px; }
@@ -88,7 +91,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .estimate-banner span { font-family: var(--font-read); font-size: 17px; line-height: 1.25; }
 
 /* Buttons on map */
-.fabs { position: absolute; right: 12px; bottom: calc(var(--nav-h) + var(--safe-b) + 40px); display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+.fabs { position: absolute; right: calc(12px + var(--safe-r)); bottom: calc(var(--nav-h) + var(--safe-b) + 40px); display: flex; flex-direction: column; gap: 10px; z-index: 10; }
 .fab { width: 48px; height: 48px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--green-800); box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; }
 :root[data-theme="dark"] .fab { color: var(--gold-soft); }
 .fab-primary { background: var(--grad); color: #FFF; border-color: transparent; }
@@ -254,3 +257,11 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--in
 .reg-item { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; }
 .reg-item .r-name { font-weight: 600; }
 .reg-item .r-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+/* Tablets and wide windows: sheets become a side panel so the map stays in view. */
+@media (min-width: 768px) {
+  .sheet, .sheet.peek { left: calc(16px + var(--safe-l)); right: auto; width: 420px; bottom: calc(var(--nav-h) + var(--safe-b) + 16px); max-height: calc(100vh - var(--nav-h) - var(--safe-b) - var(--safe-t) - 90px); border-radius: 22px; animation: slide .22s ease-out; }
+  .scrim { background: transparent; pointer-events: none; }
+  .toast { max-width: 480px; }
+}
+@keyframes slide { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }

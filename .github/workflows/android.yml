@@ -1,0 +1,26 @@
+# Builds the Android debug APK with Gradle, so a test build is ready after every push.
+name: Android build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bristlecone-android
+          path: app/build/outputs/apk/debug/*.apk

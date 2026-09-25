@@ -147,7 +147,7 @@
     const k = z + '/' + x + '/' + y;
     if (demCache.has(k)) return demCache.get(k);
     const p = (async () => {
-      const r = await fetch(BcStyle.DEM.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+      const r = await fetch(Native.proxy(BcStyle.DEM).replace('{z}', z).replace('{x}', x).replace('{y}', y));
       if (!r.ok) throw new Error('dem ' + r.status);
       const bmp = await createImageBitmap(await r.blob());
       const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
@@ -448,7 +448,7 @@
     commonsPhotos(sample).catch(() => []).then(photos => {
       const all = (nps ? nps.images : []).concat(photos);
       const el = q('#td-photos'); if (!el) return;
-      el.innerHTML = all.length ? all.map(ph => '<a href="#" data-ext="' + esc(ph.url || ph.src) + '" class="photo"><img loading="lazy" src="' + esc(ph.src) + '" alt="' + esc(ph.caption || '') + '"><span>' + esc([ph.credit, ph.license].filter(Boolean).join(' · ')) + '</span></a>').join('') +
+      el.innerHTML = all.length ? all.map(ph => '<a href="#" data-ext="' + esc(ph.url || ph.src) + '" class="photo"><img loading="lazy" src="' + esc(Native.proxy(ph.src)) + '" alt="' + esc(ph.caption || '') + '"><span>' + esc([ph.credit, ph.license].filter(Boolean).join(' · ')) + '</span></a>').join('') +
         '<p class="small muted" style="grid-column:1/-1">' + esc(t('td.photoNote')) + '</p>' : '<p class="read muted">' + esc(t('td.noPhotos')) + '</p>';
       el.querySelectorAll('[data-ext]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); Native.openExternal(a.dataset.ext); }));
     });
@@ -492,7 +492,7 @@
     const photos = await commonsPhotos([[lon, lat]]).catch(() => []);
     const ph = box.querySelector('#th-photos');
     if (ph) {
-      ph.innerHTML = photos.length ? photos.map(x => '<a href="#" data-ext="' + esc(x.url) + '" class="photo"><img loading="lazy" src="' + esc(x.src) + '" alt="' + esc(x.caption || '') + '"><span>' + esc([x.credit, x.license].filter(Boolean).join(' · ')) + '</span></a>').join('') + '<p class="small muted" style="grid-column:1/-1">' + esc(t('td.photoNote')) + '</p>' : '<p class="read muted">' + esc(t('td.noPhotos')) + '</p>';
+      ph.innerHTML = photos.length ? photos.map(x => '<a href="#" data-ext="' + esc(x.url) + '" class="photo"><img loading="lazy" src="' + esc(Native.proxy(x.src)) + '" alt="' + esc(x.caption || '') + '"><span>' + esc([x.credit, x.license].filter(Boolean).join(' · ')) + '</span></a>').join('') + '<p class="small muted" style="grid-column:1/-1">' + esc(t('td.photoNote')) + '</p>' : '<p class="read muted">' + esc(t('td.noPhotos')) + '</p>';
       ph.querySelectorAll('[data-ext]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); Native.openExternal(a.dataset.ext); }));
     }
   }

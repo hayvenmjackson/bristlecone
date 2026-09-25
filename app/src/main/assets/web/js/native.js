@@ -1,7 +1,42 @@
-/* Thin wrapper over the Android bridge, with browser fallbacks so the UI can be tested on a desktop. */
+/* Thin wrapper over the native bridge (Android or iOS), with browser fallbacks so the UI can be
+   tested on a desktop.
+
+   Android answers bridge calls immediately. iOS (WKWebView) always answers asynchronously, so on
+   iOS: settings and saved places are handed to the page at startup and kept in memory, and the
+   few calls that need the native side return Promises. Callers `await` those, which costs
+   nothing on Android. */
 (function () {
-  const N = window.BristleconeNative;
+  const H = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bc;
+  const IOS = H ? makeIos() : null;
+  const N = window.BristleconeNative || IOS;
   const ls = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+
+  function makeIos() {
+    // Stored under the same file-safe names as on Android.
+    const sk = (k) => String(k).replace(/[^A-Za-z0-9_.-]/g, '_');
+    const kv = Object.assign({}, window.BC_KV || {});
+    const call = (m, ...a) => H.postMessage({ m, a }).then(r => (r === undefined ? null : r));
+    const fire = (m, ...a) => { call(m, ...a).catch(() => { }); };
+    const o = {
+      info: () => JSON.stringify(window.BC_INFO || {}),
+      online: () => navigator.onLine,
+      kvGet: (k) => (Object.prototype.hasOwnProperty.call(kv, sk(k)) ? kv[sk(k)] : null),
+      kvPut: (k, v) => { kv[sk(k)] = String(v); fire('kvPut', k, String(v)); return true; },
+      kvRemove: (k) => { delete kv[sk(k)]; fire('kvRemove', k); },
+      kvKeys: (p) => JSON.stringify(Object.keys(kv).filter(k => !p || k.startsWith(sk(p))))
+    };
+    // Calls whose answers the page waits for.
+    ['downloadRegion', 'listRegions', 'storageStats', 'trackStatus', 'trackList', 'trackPoints', 'trackMeta', 'trackStop', 'trackUpdate', 'shareFile']
+      .forEach(m => { o[m] = (...a) => call(m, ...a); });
+    // Fire-and-forget calls.
+    ['requestLocation', 'stopLocation', 'resetStride', 'cancelRegion', 'deleteRegion', 'clearBrowseCache', 'backup', 'restore', 'saveFile', 'openExternal',
+      'setDark', 'keepScreenOn', 'copy', 'share', 'trackStart', 'trackPause', 'trackResume', 'trackDelete', 'sms', 'healthRequest', 'healthWrite']
+      .forEach(m => { o[m] = (...a) => fire(m, ...a); });
+    return o;
+  }
+  /** Applies f to a bridge answer whether it arrived now (Android) or later (iOS). */
+  const lift = (v, f) => (v && typeof v.then === 'function' ? v.then(f) : f(v));
+  const parse = (fallback) => (x) => { try { return x ? JSON.parse(x) : fallback; } catch (e) { return fallback; } };
 
   // Browser stand-in for the recording service, so the flow can be tried on a desktop.
   const web = { id: null, paused: false, pts: [], steps: 0, start: 0 };
@@ -53,6 +88,9 @@
     healthRequest() { if (N) return N.healthRequest(); setTimeout(() => window.bcNative.onHealthPermission(JSON.stringify({ granted: false, unavailable: true })), 50); },
     healthWrite(id) { if (N) return N.healthWrite(id); },
     isApp: !!N,
+    platform: window.BristleconeNative ? 'android' : IOS ? 'ios' : 'web',
+    /** On iOS, remote https requests go through the app's own scheme so they are cached for offline use. */
+    proxy(url) { return window.BC_PROXY && /^https:\/\//.test(url) ? window.BC_PROXY + url.slice(8) : url; },
     info() {
       if (N) { try { return JSON.parse(N.info()); } catch (e) { /* fall through */ } }
       return { locale: navigator.language, version: '1.0.0-web', barometer: false, stepDetector: false, locationPermission: false, online: navigator.onLine, strideSamples: 0 };
@@ -70,10 +108,11 @@
     },
     resetStride() { if (N) N.resetStride(); },
     downloadRegion(spec) { return N ? N.downloadRegion(JSON.stringify(spec)) : 'unsupported'; },
+    kvRemove(k) { if (N && N.kvRemove) N.kvRemove(k); else if (ls) ls.removeItem('bc_' + k); },
     cancelRegion(id) { if (N) N.cancelRegion(id); },
     deleteRegion(id) { if (N) N.deleteRegion(id); },
-    listRegions() { try { return N ? JSON.parse(N.listRegions()) : []; } catch (e) { return []; } },
-    storageStats() { try { return N ? JSON.parse(N.storageStats()) : { cacheBytes: 0, dataBytes: 0, freeBytes: 0 }; } catch (e) { return {}; } },
+    listRegions() { return N ? lift(N.listRegions(), parse([])) : []; },
+    storageStats() { return N ? lift(N.storageStats(), parse({})) : { cacheBytes: 0, dataBytes: 0, freeBytes: 0 }; },
     clearBrowseCache() { if (N) N.clearBrowseCache(); },
     backup(includeMaps, filename) { if (N) N.backup(!!includeMaps, filename); },
     restore() { if (N) N.restore(); },

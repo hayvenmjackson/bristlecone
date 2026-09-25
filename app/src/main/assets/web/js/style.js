@@ -4,7 +4,8 @@
   const OFM = 'https://tiles.openfreemap.org/planet';
   // Map labels use Overpass glyphs bundled with the app (tools/fonts/make_glyphs.py). The native
   // layer falls back to Noto Sans from OpenFreeMap for scripts Overpass does not cover.
-  const GLYPHS = location.origin + '/glyphs/{fontstack}/{range}.pbf';
+  // On iOS the bundled glyphs are reached through the app's cache under the Android host name.
+  const GLYPHS = (window.BC_PROXY ? 'https://app.bristlecone.local' : location.origin) + '/glyphs/{fontstack}/{range}.pbf';
   const DEM = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   const F = { reg: ['Overpass Regular'], bold: ['Overpass Bold'], ital: ['Overpass Italic'] };
 

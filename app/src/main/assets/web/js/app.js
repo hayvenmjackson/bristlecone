@@ -154,7 +154,7 @@
   function contourUrl() {
     if (!window.mlcontour) return null;
     if (!demSource) {
-      demSource = new mlcontour.DemSource({ url: BcStyle.DEM, encoding: 'terrarium', maxzoom: 12, worker: false, cacheSize: 100, timeoutMs: 20000 });
+      demSource = new mlcontour.DemSource({ url: Native.proxy(BcStyle.DEM), encoding: 'terrarium', maxzoom: 12, worker: false, cacheSize: 100, timeoutMs: 20000 });
       demSource.setupMaplibre(maplibregl);
     }
     return demSource.contourProtocolUrl({
@@ -198,10 +198,28 @@
   function applyStyle() { map.setStyle(BcStyle.build(styleOpts())); }
   function setData(id) { const s = map && map.getSource(id); if (s) s.setData(data[id]); }
 
+  /**
+   * On iOS, map requests are handed to the page (the "bcp" protocol runs on the main thread) and
+   * fetched through the app's own scheme, where they are cached for offline use. Android's WebView
+   * sees every request directly, so nothing is needed there.
+   */
+  function iosMapRequests() {
+    maplibregl.addProtocol('bcp', async (params, ctl) => {
+      const r = await fetch(Native.proxy('https://' + params.url.slice(6)), { signal: ctl.signal });
+      if (r.status === 204) return { data: new ArrayBuffer(0) };
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (params.type === 'json') return { data: await r.json() };
+      if (params.type === 'string') return { data: await r.text() };
+      return { data: await r.arrayBuffer() };
+    });
+    return (url) => (/^https:\/\//.test(url) ? { url: 'bcp://' + url.slice(8) } : undefined);
+  }
+
   function initMap() {
     map = new maplibregl.Map({
       container: 'map', style: BcStyle.build(styleOpts()), center: S.view.center, zoom: S.view.zoom,
-      attributionControl: { compact: true }, maxPitch: 70, dragRotate: true, pitchWithRotate: true, fadeDuration: 150
+      attributionControl: { compact: true }, maxPitch: 70, dragRotate: true, pitchWithRotate: true, fadeDuration: 150,
+      transformRequest: Native.platform === 'ios' ? iosMapRequests() : undefined
     });
     scaleCtl = new maplibregl.ScaleControl({ unit: imperial() ? 'imperial' : 'metric', maxWidth: 90 });
     map.addControl(scaleCtl, 'bottom-left');
@@ -702,10 +720,11 @@
   }
 
   // ------------------------------------------------------------------ Offline
-  function renderOffline() {
+  async function renderOffline() {
     setTab('offline', true);
-    const regions = Native.listRegions().sort((a, b) => b.created - a.created);
-    const st = Native.storageStats();
+    const [regionList, st] = await Promise.all([Native.listRegions(), Native.storageStats()]);
+    if (currentTab !== 'offline') return;
+    const regions = regionList.slice().sort((a, b) => b.created - a.created);
     const c = map.getCenter();
     let html = head(t('off.title'));
     html += '<div class="band"><span class="eyebrow">' + esc(t('note.label')) + '</span><p>' + esc(t('off.intro')) + '</p></div>';
@@ -736,7 +755,7 @@
     const inc = $('[data-toggle="incbase"]', body); if (inc) inc.addEventListener('change', () => { opts.includeBase = inc.checked; est(); });
     est();
     $('#o-go', body).onclick = () => startDownload($('#o-name', body).value.trim() || 'Bristlecone', opts);
-    bindRegionCards(body);
+    bindRegionCards(body, regions);
     $('#o-clear', body).onclick = () => { Native.clearBrowseCache(); toast(t('off.saved')); };
     $('#o-img', body).onclick = async () => {
       try { const b64 = await BcOffline.mapImage(map, App.state.dark); Native.saveFile('bristlecone-map-' + new Date().toISOString().slice(0, 10) + '.png', 'image/png', b64); }
@@ -763,8 +782,7 @@
       '<div class="btns"><button class="btn small" data-rshow>' + esc(t('off.show')) + '</button>' +
       (state === 'downloading' ? '<button class="btn small danger" data-rcancel>' + esc(t('off.cancel')) + '</button>' : '<button class="btn small danger" data-rdel>' + esc(t('off.delete')) + '</button>') + '</div></div>';
   }
-  function bindRegionCards(body) {
-    const regions = Native.listRegions();
+  function bindRegionCards(body, regions) {
     $$('[data-region]', body).forEach(card => {
       const id = card.dataset.region;
       const r = regions.find(x => x.id === id) || {};
@@ -786,7 +804,7 @@
     try {
       const plan = await BcOffline.plan(bbox, opts);
       const id = 'r' + Date.now();
-      const res = Native.downloadRegion({ id, name, bbox, minZoom: 0, maxZoom: plan.maxZ, layers: Object.keys(S.layers).filter(k => S.layers[k]), urls: plan.urls });
+      const res = await Native.downloadRegion({ id, name, bbox, minZoom: 0, maxZoom: plan.maxZ, layers: Object.keys(S.layers).filter(k => S.layers[k]), urls: plan.urls });
       if (res !== 'ok') throw new Error(res);
       App.state.regionProgress[id] = { id, name, done: 0, total: plan.urls.length, state: 'downloading', bytes: 0 };
       toast(t('toast.downloadStarted'));
@@ -835,7 +853,7 @@
         '<div class="btns"><button class="btn small" data-pshow>' + esc(t('pl.show')) + '</button><button class="btn small" data-pedit>' + esc(t('pl.edit')) + '</button><button class="btn small" data-pshare>' + ICON.share + esc(t('pl.share')) + '</button></div></div>';
     });
     const body = openSheet(html);
-    if (window.BcRecord && BcRecord.renderHikes($('#hikes', body)) && !list.length) { const es = $('.empty-state', body); if (es) es.remove(); }
+    if (window.BcRecord) BcRecord.renderHikes($('#hikes', body)).then(n => { if (n && !list.length) { const es = $('.empty-state', body); if (es) es.remove(); } });
     const c = map.getCenter();
     $('#p-center', body).onclick = () => openPlaceEditor({ lon: c.lng, lat: c.lat });
     const here = $('#p-here', body); if (here) here.onclick = () => openPlaceEditor({ lon: App.state.me.lon, lat: App.state.me.lat });

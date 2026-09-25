@@ -785,6 +785,61 @@
     'es-419': { label: 'Español (EE. UU. y Latinoamérica)', dict: es, units: 'imperial', date: 'es-US' }
   };
 
+  // On iPhone and iPad the same UI talks about Apple Health and iOS settings instead.
+  const IOS_TEXT = {
+    en: {
+      'loc.permission': 'Location access is off. Turn it on in Settings, Bristlecone, Location to see your position on the map.',
+      'common.needsApp': 'This needs the Bristlecone app.',
+      'backup.driveNote': 'Opens the Files picker. Choose Google Drive, iCloud Drive or any folder as the destination. Everything else stays on this {device}.',
+      'rec.intro': 'Bristlecone records your route, distance, climb and steps, even with the screen locked. You can share it or save it to Apple Health afterward.',
+      'health.save': 'Save to Apple Health',
+      'health.synced': 'Saved to Apple Health',
+      'health.done': 'Saved to Apple Health.',
+      'health.denied': 'Apple Health access was not allowed. You can change this in the Health app under Sharing, Apps, Bristlecone.',
+      'health.needs14': 'Apple Health is not available on this {device}. You can still share the GPX file with Strava, Garmin Connect and others.',
+      'health.privacyTitle': 'Bristlecone and Apple Health',
+      'health.privacyBody': 'Bristlecone only writes to Apple Health, and only the hikes you choose to save: that it was a hike, the start and end time, the route, distance and elevation gained. It never reads your health data. Nothing is sent anywhere else.',
+      'rec.battery': 'Recording uses GPS continuously. A full day usually takes a third to half of a full charge.'
+    },
+    fr: {
+      'loc.permission': 'L’accès à la localisation est désactivé. Activez-le dans Réglages, Bristlecone, Position pour voir votre position sur la carte.',
+      'common.needsApp': 'Cette fonction exige l’application Bristlecone.',
+      'backup.driveNote': 'Ouvre le sélecteur Fichiers. Choisissez Google Drive, iCloud Drive ou tout autre dossier comme destination. Tout le reste demeure sur {device}.',
+      'rec.intro': 'Bristlecone enregistre votre tracé, la distance, le dénivelé et vos pas, même écran verrouillé. Vous pourrez ensuite le partager ou l’enregistrer dans Santé.',
+      'health.save': 'Enregistrer dans Santé',
+      'health.synced': 'Enregistré dans Santé',
+      'health.done': 'Enregistré dans Santé.',
+      'health.denied': 'L’accès à Santé n’a pas été autorisé. Vous pouvez le modifier dans l’app Santé, sous Partage, Apps, Bristlecone.',
+      'health.needs14': 'L’app Santé n’est pas offerte sur {device}. Vous pouvez tout de même partager le fichier GPX avec Strava, Garmin Connect et d’autres.',
+      'health.privacyTitle': 'Bristlecone et Santé',
+      'health.privacyBody': 'Bristlecone ne fait qu’écrire dans Santé, et seulement les randonnées que vous choisissez d’enregistrer : le type d’activité, l’heure de début et de fin, le tracé, la distance et le dénivelé. Il ne lit jamais vos données de santé. Rien n’est envoyé ailleurs.',
+      'rec.battery': 'L’enregistrement utilise le GPS en continu. Une journée complète prend habituellement du tiers à la moitié d’une charge.'
+    },
+    es: {
+      'loc.permission': 'El acceso a la ubicación está desactivado. Actívalo en Configuración, Bristlecone, Ubicación para ver tu posición en el mapa.',
+      'common.needsApp': 'Esto requiere la app Bristlecone.',
+      'backup.driveNote': 'Abre el selector de Archivos. Elige Google Drive, iCloud Drive o cualquier carpeta como destino. Todo lo demás se queda en {device}.',
+      'rec.intro': 'Bristlecone graba tu ruta, distancia, desnivel y pasos, incluso con la pantalla bloqueada. Después puedes compartirla o guardarla en Salud.',
+      'health.save': 'Guardar en Salud',
+      'health.synced': 'Guardado en Salud',
+      'health.done': 'Guardado en Salud.',
+      'health.denied': 'No se permitió el acceso a Salud. Puedes cambiarlo en la app Salud, en Compartir, Apps, Bristlecone.',
+      'health.needs14': 'La app Salud no está disponible en {device}. Aun así puedes compartir el archivo GPX con Strava, Garmin Connect y otros.',
+      'health.privacyTitle': 'Bristlecone y Salud',
+      'health.privacyBody': 'Bristlecone solo escribe en Salud, y solo las caminatas que decides guardar: el tipo de actividad, la hora de inicio y fin, la ruta, la distancia y el desnivel. Nunca lee tus datos de salud. No se envía nada a ningún otro lugar.',
+      'rec.battery': 'La grabación usa el GPS de forma continua. Un día completo suele gastar entre un tercio y la mitad de una carga.'
+    }
+  };
+  // "Phone" wording, adjusted when running on an iPad.
+  const PAD_WORDS = {
+    en: [[/\bthis phone\b/g, 'this iPad'], [/\bthe phone\b/g, 'the iPad'], [/\{device\}/g, 'iPad']],
+    fr: [[/\bce téléphone\b/g, 'cet iPad'], [/\bdu téléphone\b/g, 'de l’iPad'], [/\ble téléphone\b/g, 'l’iPad'], [/\{device\}/g, 'cet iPad']],
+    es: [[/\beste teléfono\b/g, 'este iPad'], [/\bdel teléfono\b/g, 'del iPad'], [/\bel teléfono\b/g, 'el iPad'], [/\{device\}/g, 'este iPad']]
+  };
+  const PHONE_WORDS = { en: [[/\{device\}/g, 'iPhone']], fr: [[/\{device\}/g, 'cet iPhone']], es: [[/\{device\}/g, 'este iPhone']] };
+  const iosInfo = (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bc) ? (window.BC_INFO || {}) : null;
+  const langFamily = (l) => (l.startsWith('fr') ? 'fr' : l.startsWith('es') ? 'es' : 'en');
+
   let current = 'en-US';
 
   function pickDefault(locale) {
@@ -801,6 +856,11 @@
     let s = d[key];
     if (s === undefined) s = en[key];
     if (s === undefined) return key;
+    if (iosInfo) {
+      const fam = langFamily(current);
+      if (IOS_TEXT[fam][key] !== undefined) s = IOS_TEXT[fam][key];
+      (iosInfo.idiom === 'pad' ? PAD_WORDS : PHONE_WORDS)[fam].forEach(([re, w]) => { s = s.replace(re, w); });
+    }
     if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
     return s;
   }
@@ -818,6 +878,6 @@
     set lang(v) { if (LANGS[v]) current = v; },
     dateLocale() { return LANGS[current].date; },
     defaultUnits(l) { return (LANGS[l || current] || LANGS['en-US']).units; },
-    _dicts: { en, enCA, fr, es }
+    _dicts: { en, enCA, fr, es }, _ios: IOS_TEXT
   };
 })();

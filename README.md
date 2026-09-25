@@ -2,7 +2,7 @@
 
 Trail maps for the US and Canada, drawn from public data. *Know the ground.*
 
-Android app (minSdk 26, Android 8.0 and newer). Native Java shell with a bundled MapLibre GL JS map engine. No third-party Android libraries, no account, no tracking.
+Android (8.0 and newer) and iPhone and iPad (iOS 16 and newer). One map UI, built on a bundled MapLibre GL JS engine, runs inside a small native shell on each platform: Java on Android, Swift on iOS. No third-party native libraries, no account, no tracking.
 
 ## Install the test build
 
@@ -11,6 +11,17 @@ Android app (minSdk 26, Android 8.0 and newer). Native Java shell with a bundled
 3. On first launch, allow Location (and Physical activity, which the step counter needs for position estimates).
 
 The debug APK is signed with a throwaway debug key. Build a release with your own key before publishing.
+
+## Install on iPhone or iPad (no Mac needed)
+
+GitHub builds the iOS app on every push to `main` (Actions, "iOS build"). Open the latest run and download the `Bristlecone-ios` artifact, which contains `Bristlecone-unsigned.ipa`.
+
+1. On a Windows PC, install AltServer from altstore.io, and iTunes and iCloud from Apple's website (not the Microsoft Store versions).
+2. Connect the iPad by cable, trust the computer, and use AltServer to install AltStore on it with your Apple ID.
+3. On the iPad, turn on Developer Mode (Settings, Privacy & Security, Developer Mode) when iOS asks.
+4. Copy the .ipa to the iPad (iCloud Drive or Files), open AltStore, My Apps, +, and pick it.
+
+A free Apple ID signs apps for 7 days; AltStore refreshes them when the iPad and the PC are on the same Wi-Fi with AltServer running. SideStore works the same way without the PC after setup. If a build fails, the `ios-build-log` artifact has the full log.
 
 ## What it does
 
@@ -25,14 +36,22 @@ The debug APK is signed with a throwaway debug key. Build a release with your ow
 | Search | Places, trails and hiking regions. About 60 curated regions (Northern and Southern Utah, Wyoming mountains, coastal Maine, North Maine Woods, the Grand Canyon area, the Canadian Rockies, Gaspésie and more) match in all four languages and work offline; states, provinces and parks from search also list their named trails. |
 | Recording | Records hikes with the screen off (foreground service with its notification), recovering if Android stops the app mid-hike. Distance with GPS jitter filtered, moving time, climb from the barometer (or smoothed GPS altitude), steps. |
 | Sharing | A 1080 x 1350 route card (map, stats, Bristlecone credit) and GPX through Android's share sheet: TikTok, Instagram, Facebook, X, LinkedIn, messaging, Strava or Garmin import, anything installed. "Text my location" opens messaging with your coordinates, accuracy (flagged when estimated) and a map link. |
-| Health Connect | Saves recorded hikes (exercise session with route, distance, elevation gained, steps) on Android 14 and newer. Write only; the app never reads health data. |
+| Health Connect and Apple Health | Android 14 and newer: saves recorded hikes (exercise session with route, distance, elevation gained, steps) to Health Connect. iOS: saves a hiking workout with route, distance and elevation gained to Apple Health (steps are left out because the iPhone already counts them). Write only; the app never reads health data. |
 | Position | GPS first. If GPS drops out: Wi-Fi and cell location, then dead reckoning from the last good fix (step detector, compass with magnetic declination, barometer) using a stride model the phone learns from your own GPS walks (recursive least squares). Anything but GPS is shown in amber, labeled as an estimate, with a growing uncertainty circle and a prompt to confirm against landmarks. The dot is matched to the nearest trail when one is inside the circle. |
 | Reports | National Weather Service, Environment and Climate Change Canada, National Park Service alerts and closures, Avalanche.org, Avalanche Canada, NIFC wildfire perimeters, OpenStreetMap trail notes, trail reports from Mastodon-compatible servers (mastodon.social, noagendasocial.com and gab.com by default; editable in Settings), and your own field reports. Social posts pass an on-phone filter that keeps only first-hand condition reports; "Useful" and "Not a trail report" taps retrain it on the phone. Always sorted newest first and grouped by age. Saved copies are labeled with their age when offline. |
 | Offline | "Download this view" saves vector tiles, terrain, glyphs, trail data, land boundaries, hazards and a reports snapshot. Every request the map makes is also cached as you browse. Downloaded regions survive cache trimming and server tile updates. |
 | Export | Map image with a Bristlecone credit strip, and GPX of trails in view. |
 | Languages | English (US), English (Canada), Français (Canada), Español (EE. UU. y Latinoamérica). Switch any time in Settings. |
 | Appearance | Automatic light and dark from sunrise and sunset at your location (NOAA solar math), or fixed light or dark. |
-| Storage | Everything lives on the phone. "Back up to Google Drive" writes a single .zip through the Android file picker; choose Drive as the destination. Restore reads it back. Optionally include downloaded maps. |
+| Storage | Everything lives on the device. "Back up to Google Drive" writes a single .zip through the system file picker (Android's, or Files on iOS, where iCloud Drive also works); choose Drive as the destination. Restore reads it back. Optionally include downloaded maps. Backups move between Android and iOS. |
+
+## iOS notes
+
+- The Swift shell hosts the same web UI in a WKWebView. Pages load from `bristlecone://app/`, and every remote request (map tiles, glyphs, trail data, reports, photos) goes through `bristlecone://app/proxy/`, which uses the same cache rules and cache keys as Android, so downloaded maps work offline and backups restore on either platform.
+- Positioning uses Core Location, the pedometer, the barometer and the compass, with the same stride model and dead reckoning as Android. iOS blends GPS, Wi-Fi and cell positions itself, so the app reads the mode from the reported accuracy.
+- Recording keeps going with the screen locked (background location, with the blue status bar indicator).
+- Wi-Fi-only iPads have no GPS chip, so away from Wi-Fi they fall back to estimates (cellular iPads have GPS). Step counting is not available on every iPad.
+- The project file is generated by XcodeGen from `ios/project.yml`; nothing in `ios/` needs Xcode to edit.
 
 ## Project layout
 
@@ -52,7 +71,19 @@ app/src/main/java/app/bristlecone/   Native layer
   TrackStore.java       Recorded hikes on disk
   HealthSync.java       Health Connect (Android 14+)
   ShareProvider.java    Files handed to other apps for sharing
-app/src/main/assets/web/             UI
+ios/Bristlecone/Sources/             iOS shell (Swift)
+  WebViewController.swift   Web view host and the calls available to the UI
+  SchemeHandler.swift       Serves the UI and proxies remote requests through the cache
+  NetCache.swift            Local-first network layer and cache policy
+  RegionManager.swift       Offline region downloads
+  LocationEngine.swift      Core Location, pedometer, barometer, compass
+  Estimation.swift          Stride model and dead reckoning
+  TrackRecorder.swift       Hike recording, statistics and storage
+  HealthSync.swift          Apple Health
+  Storage.swift, Zip.swift  Settings, backup and restore
+ios/project.yml                      XcodeGen project spec
+.github/workflows/                   GitHub builds (iOS .ipa, Android APK)
+app/src/main/assets/web/             UI (shared by both apps)
   js/style.js           Map style (all themes, units, bases)
   js/data.js            Trails, lands, climbing, fire, geocoding
   js/reports.js         Conditions and reports
@@ -83,19 +114,23 @@ mkdir -p .sdk && cp <android-sdk>/platforms/android-34/android.jar .sdk/android-
 ./tools/build-apk.sh
 ```
 
+**iOS:** push to GitHub; the "iOS build" workflow generates the project with XcodeGen and builds on a macOS runner. On a Mac: `brew install xcodegen`, then `cd ios && xcodegen generate` and open `Bristlecone.xcodeproj`.
+
 **Report filter:** `node tools/classifier/train.js` retrains from `tools/classifier/seed.tsv` and prints cross-validated accuracy. On the current 224 hand-labeled examples: 93.8% accuracy, 99% precision, 88.5% recall. Those numbers are on examples written for the purpose; real posts will differ, which is why the phone keeps learning from feedback. Adding real labeled posts to the seed file is the best improvement.
 
 ## Tests
 
 - `./tools/test-logic.sh`: stride model, dead reckoning, cache policy, hike statistics (29 checks).
 - `node tools/jstest/style-and-data.test.js`: validates the map style against the MapLibre spec in all 80 theme, unit, base map and language combinations; trail parsing and classification; polygon handling; sunrise math; the US and Canada border test; trail ratings (including an Expert Only case modeled on the Precipice Trail); path chaining and elevation profiles; region matching in three languages; the report filter; that French and Spanish have every string; no em or en dashes; no stock marketing words.
+- `node tools/uitest/ios.js`: the same UI as the iOS app sees it, with a simulated WKWebView bridge that answers with Promises, on iPad and iPhone screen sizes. Checks that every map and data request goes through the app's proxy, that the offline list, recording and Apple Health flows work over the asynchronous bridge, that iPad sheets become a side panel, and that iOS wording (Apple Health, Files, "this iPad", French and Spanish) replaces the Android wording.
 - `node tools/uitest/run.js`: headless UI run with synthetic tiles and mocked public APIs, capturing screenshots in all languages and both themes, recording a hike, generating a route card, opening trail details, region search, the satellite view, and checking that hostile markup in reports and social posts never runs.
 
 ## Before a public launch
 
 - **Name.** No Android app named Bristlecone turned up in a search, but the name is used elsewhere in tech (Bristlecone Inc. is a supply-chain software company, and Google used it for a quantum chip). Run a USPTO and CIPO trademark search, and consider "Bristlecone Maps" or "Bristlecone Trails" as the store name.
 - **Shared public services.** Overpass, Nominatim, OpenFreeMap and OpenTopoMap are volunteer or donation-run and have fair-use policies. They are fine for testing and light use. At scale, self-host Overpass and Nominatim, host your own OpenFreeMap/PMTiles extract, or use a paid provider. The National Park Service demo key is rate limited; add a free key in Settings.
-- **Real device testing.** The UI, map style and logic were tested in headless Chromium and plain Java. Sensors, GPS fallbacks, the file picker and downloads need a pass on real phones.
+- **Real device testing.** The UI, map style and logic were tested in headless Chromium and plain Java. Sensors, GPS fallbacks, the file picker and downloads need a pass on real phones and tablets. The Swift shell was syntax-checked but first compiles on the GitHub macOS runner.
+- **App Store.** Needs an Apple Developer Program membership, a signing team in `ios/project.yml`, a privacy policy, and App Store review of the background location and HealthKit use.
 - **Store requirements.** Release signing key, privacy policy (location use), data-safety form, and the Play location permission declaration (the app only uses location while it is open).
 - **Satellite imagery.** The Sentinel-2 2016 mosaic is licensed CC BY-SA 4.0 (commercial use allowed with credit), but EOX's hosted tile service has its own fair-use terms; for a commercial launch, host the tiles yourself or license EOX's service. NAIP is public domain.
 - **Social sources.** Mastodon-compatible servers can restrict anonymous hashtag timelines at any time; the app marks a server unavailable and carries on. Gab's Mastodon-style API is not officially documented. Truth Social has no public API.

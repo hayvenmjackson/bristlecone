@@ -8,3 +8,7 @@ tools/debug.keystore
 *.jks
 .DS_Store
 .sdk/
+ios/build/
+ios/*.xcodeproj/
+ios/Payload/
+*.ipa

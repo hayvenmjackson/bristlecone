@@ -1,0 +1,54 @@
+# Builds the iPhone and iPad app on a GitHub macOS runner. No Mac or Apple developer account
+# is needed: the result is an unsigned .ipa (ad-hoc signed only to carry the Health
+# entitlement), which AltStore or SideStore signs with your own Apple ID when installing.
+name: iOS build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project Bristlecone.xcodeproj -scheme Bristlecone -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | grep -E "error:|warning: .*Bristlecone|BUILD (SUCCEEDED|FAILED)" || true
+          test -d build/Build/Products/Release-iphoneos/Bristlecone.app
+
+      - name: Package the .ipa
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Bristlecone.app Payload/
+          codesign --force --sign - --entitlements Bristlecone/Bristlecone.entitlements Payload/Bristlecone.app
+          zip -qry Bristlecone-unsigned.ipa Payload
+          ls -la Bristlecone-unsigned.ipa
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bristlecone-ios
+          path: ios/Bristlecone-unsigned.ipa
+
+      - name: Upload the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios/build.log

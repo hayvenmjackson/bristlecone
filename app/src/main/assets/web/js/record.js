@@ -43,9 +43,9 @@
 
   function showBar(on) { $('#rec-bar').classList.toggle('hidden', !on); }
 
-  function poll() {
+  async function poll() {
     clearTimeout(pollTimer);
-    try { status = JSON.parse(Native.trackStatus() || '{}'); } catch (e) { status = { recording: false }; }
+    try { status = JSON.parse((await Native.trackStatus()) || '{}'); } catch (e) { status = { recording: false }; }
     const fab = $('#btn-record');
     if (fab) fab.classList.toggle('recording', !!status.recording);
     if (status.recording) {
@@ -56,15 +56,15 @@
       $('#rec-pause').textContent = t(status.paused ? 'rec.resume' : 'rec.pause');
       $('#rec-stop').textContent = t('rec.stop');
       $('#rec-bar').classList.toggle('paused', !!status.paused);
-      if (Date.now() - lastPointsAt > 8000) { lastPointsAt = Date.now(); drawTrack(readPoints(status.id)); }
+      if (Date.now() - lastPointsAt > 8000) { lastPointsAt = Date.now(); drawTrack(await readPoints(status.id)); }
       pollTimer = setTimeout(poll, 2000);
     } else {
       showBar(false);
     }
   }
 
-  function readPoints(id) { try { return JSON.parse(Native.trackPoints(id) || '[]'); } catch (e) { return []; } }
-  function readMeta(id) { try { return JSON.parse(Native.trackMeta(id) || 'null'); } catch (e) { return null; } }
+  async function readPoints(id) { try { return JSON.parse((await Native.trackPoints(id)) || '[]'); } catch (e) { return []; } }
+  async function readMeta(id) { try { return JSON.parse((await Native.trackMeta(id)) || 'null'); } catch (e) { return null; } }
 
   function drawTrack(pts) {
     const line = pts.map(p => [p[0], p[1]]);
@@ -77,14 +77,15 @@
   }
 
   async function stop() {
-    const id = Native.trackStop();
+    clearTimeout(pollTimer);
+    const id = await Native.trackStop();
     showBar(false);
     $('#btn-record').classList.remove('recording');
     status = { recording: false };
     if (!id) return;
     // The service writes the summary a moment after it stops.
     let meta = null;
-    for (let i = 0; i < 15 && !meta; i++) { await new Promise(r => setTimeout(r, 250)); meta = readMeta(id); }
+    for (let i = 0; i < 15 && !meta; i++) { await new Promise(r => setTimeout(r, 250)); meta = await readMeta(id); }
     if (!meta) { U.toast(t('rec.tooShort')); U.data.track = { type: 'FeatureCollection', features: [] }; U.setData('track'); return; }
     const place = await U.placeContext(U.map.getCenter().lng, U.map.getCenter().lat).catch(() => ({}));
     if (!meta.name) {
@@ -101,10 +102,10 @@
       [t('rec.climb'), fmtGain(gain)], [t('rec.steps'), m.steps ? Number(m.steps).toLocaleString(I18N.dateLocale()) : '']];
   }
 
-  function openHike(id) {
-    const m = readMeta(id);
+  async function openHike(id) {
+    const m = await readMeta(id);
     if (!m) return;
-    const pts = readPoints(id);
+    const pts = await readPoints(id);
     drawTrack(pts);
     fit(pts.map(p => [p[0], p[1]]));
     const info = Native.info();
@@ -153,10 +154,10 @@
     return { top: vert, bottom: vert, left: side, right: side };
   }
 
-  function renderHikes(el) {
-    if (!el) return;
+  async function renderHikes(el) {
+    if (!el) return 0;
     let list = [];
-    try { list = JSON.parse(Native.trackList() || '[]'); } catch (e) { list = []; }
+    try { list = JSON.parse((await Native.trackList()) || '[]'); } catch (e) { list = []; }
     list.sort((a, b) => b.start - a.start);
     if (!list.length) { el.innerHTML = ''; return 0; }
     el.innerHTML = '<h3 class="section">' + esc(t('rec.hikes')) + '</h3>' + list.map(m =>

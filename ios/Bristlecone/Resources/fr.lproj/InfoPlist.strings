@@ -1,0 +1,4 @@
+"NSLocationWhenInUseUsageDescription" = "Bristlecone affiche votre position sur la carte des sentiers et enregistre les randonnées que vous lancez. Votre position reste sur cet appareil.";
+"NSMotionUsageDescription" = "Bristlecone compte vos pas et lit le baromètre pour estimer votre position quand le GPS décroche et pour mesurer le dénivelé.";
+"NSHealthUpdateUsageDescription" = "Bristlecone enregistre dans Santé les randonnées de votre choix : le tracé, la distance et le dénivelé.";
+"NSHealthShareUsageDescription" = "Bristlecone ne lit jamais vos données de santé. Il enregistre seulement les randonnées de votre choix.";

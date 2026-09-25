@@ -59,7 +59,7 @@
 
   // ------------------------------------------------------------------ Fetch helpers
   async function getJson(url, opts) {
-    const r = await fetch(url, opts);
+    const r = await fetch(Native.proxy(url), opts);
     const meta = { fetched: Number(r.headers.get('X-Bc-Fetched')) || Date.now(), stale: r.headers.get('X-Bc-Stale') === '1' };
     if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
     const j = await r.json();
