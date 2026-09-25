@@ -1,7 +1,8 @@
 /* Offline regions and exports. */
 (function () {
   const MAX_TILES = 45000;
-  const GLYPH_RANGES = ['0-255', '256-511', '512-767', '768-1023', '7680-7935', '8192-8447'];
+  // Latin glyphs ship with the app; save the Noto fallback for Canadian Aboriginal syllabics.
+  const GLYPH_RANGES = ['5120-5375', '5376-5631', '5632-5887'];
   const FONTS = ['Noto Sans Regular', 'Noto Sans Bold', 'Noto Sans Italic'];
   const AVG = { vector: 32000, dem: 70000, raster: 30000, trail: 250000, land: 400000 };
 
@@ -77,6 +78,18 @@
     return out.join('\n');
   }
 
+  /** A recorded hike as GPX 1.1 with timestamps and elevation, for Strava, Garmin Connect, CalTopo and others. */
+  function toGpxTrack(name, pts) {
+    const esc = (x) => String(x || '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+    const out = ['<?xml version="1.0" encoding="UTF-8"?>',
+      '<gpx version="1.1" creator="Bristlecone" xmlns="http://www.topografix.com/GPX/1/1">',
+      '<metadata><name>' + esc(name) + '</name>' + (pts.length ? '<time>' + new Date(pts[0][2]).toISOString() + '</time>' : '') + '</metadata>',
+      '<trk><name>' + esc(name) + '</name><type>hiking</type><trkseg>'];
+    pts.forEach(p => out.push('<trkpt lat="' + p[1] + '" lon="' + p[0] + '">' + (p[3] != null ? '<ele>' + Number(p[3]).toFixed(1) + '</ele>' : '') + (p[2] ? '<time>' + new Date(p[2]).toISOString() + '</time>' : '') + '</trkpt>'));
+    out.push('</trkseg></trk></gpx>');
+    return out.join('\n');
+  }
+
   function b64(str) {
     const bytes = new TextEncoder().encode(str);
     let bin = '';
@@ -102,10 +115,10 @@
           g.fillStyle = '#C9A227'; g.fillRect(0, h, w, Math.max(2, strip * 0.04));
           const dpr = window.devicePixelRatio || 1;
           g.fillStyle = '#F4EFDF';
-          g.font = '600 ' + Math.round(15 * dpr) + 'px Inter, sans-serif';
+          g.font = '600 ' + Math.round(15 * dpr) + 'px Overpass, sans-serif';
           g.fillText(I18N.t('export.watermark'), 16 * dpr, h + strip * 0.45);
           g.fillStyle = 'rgba(244,239,223,0.75)';
-          g.font = Math.round(10 * dpr) + 'px Inter, sans-serif';
+          g.font = Math.round(10 * dpr) + 'px Overpass, sans-serif';
           g.fillText('© OpenStreetMap contributors · OpenMapTiles · OpenFreeMap · USGS · NRCan · ' + new Date().toLocaleDateString(I18N.dateLocale()), 16 * dpr, h + strip * 0.78);
           resolve(c.toDataURL('image/png').split(',')[1]);
         } catch (e) { reject(e); }
@@ -114,5 +127,5 @@
     });
   }
 
-  window.BcOffline = { plan, estimateOnly, toGpx, b64, mapImage, MAX_TILES };
+  window.BcOffline = { plan, estimateOnly, toGpx, toGpxTrack, b64, mapImage, MAX_TILES };
 })();

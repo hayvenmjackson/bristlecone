@@ -80,6 +80,10 @@ public final class NetCache {
     private WebResourceResponse serveAsset(String path) {
         if (path == null || path.equals("/") || path.isEmpty()) path = "/index.html";
         if (path.contains("..")) return notFound();
+        if (path.startsWith("/glyphs/")) {
+            WebResourceResponse g = serveGlyphs(path);
+            if (g != null) return g;
+        }
         try {
             InputStream in = assets.open("web" + path);
             Map<String, String> h = new HashMap<>();
@@ -88,6 +92,27 @@ public final class NetCache {
             return new WebResourceResponse(mime(path), mime(path).startsWith("text") || path.endsWith(".js") || path.endsWith(".json") ? "utf-8" : null, 200, "OK", h, in);
         } catch (IOException e) {
             return notFound();
+        }
+    }
+
+    /**
+     * Map labels use Overpass glyphs bundled in assets/web/glyphs. For character ranges Overpass
+     * does not cover (for example Canadian Aboriginal syllabics), fall back to OpenFreeMap's Noto
+     * Sans in the matching weight, cached like any other tile.
+     */
+    private WebResourceResponse serveGlyphs(String path) {
+        try {
+            InputStream in = assets.open("web" + path);
+            Map<String, String> h = new HashMap<>();
+            h.put("Access-Control-Allow-Origin", "*");
+            return new WebResourceResponse("application/x-protobuf", null, 200, "OK", h, in);
+        } catch (IOException missing) {
+            String[] parts = path.split("/");
+            if (parts.length != 4) return notFound();
+            String stack = parts[2].contains("Bold") ? "Noto Sans Bold" : parts[2].contains("Italic") ? "Noto Sans Italic" : "Noto Sans Regular";
+            if (!parts[3].matches("\\d+-\\d+\\.pbf")) return notFound();
+            String url = "https://tiles.openfreemap.org/fonts/" + stack.replace(" ", "%20") + "/" + parts[3];
+            return toResponse(get(url, false));
         }
     }
 

@@ -1,14 +1,17 @@
 /* Bristlecone, in the Katsura design language: deep green gradient, gold accent,
-   Inter for headings and controls, Cormorant Garamond for reading text. */
-@font-face { font-family: 'Inter'; font-weight: 400; font-display: swap; src: url(../fonts/inter-latin-400-normal.woff2) format('woff2'); }
-@font-face { font-family: 'Inter'; font-weight: 500; font-display: swap; src: url(../fonts/inter-latin-500-normal.woff2) format('woff2'); }
-@font-face { font-family: 'Inter'; font-weight: 600; font-display: swap; src: url(../fonts/inter-latin-600-normal.woff2) format('woff2'); }
-@font-face { font-family: 'Inter'; font-weight: 700; font-display: swap; src: url(../fonts/inter-latin-700-normal.woff2) format('woff2'); }
+   Overpass (after Highway Gothic, the US road-sign lettering) for headings and controls,
+   Cormorant Garamond for reading text. */
+@font-face { font-family: 'Overpass'; font-weight: 400; font-display: swap; src: url(../fonts/overpass-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Overpass'; font-weight: 400; font-display: swap; src: url(../fonts/overpass-latin-ext-400-normal.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Overpass'; font-weight: 600; font-display: swap; src: url(../fonts/overpass-latin-600-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Overpass'; font-weight: 600; font-display: swap; src: url(../fonts/overpass-latin-ext-600-normal.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Overpass'; font-weight: 700; font-display: swap; src: url(../fonts/overpass-latin-700-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Overpass'; font-weight: 700; font-display: swap; src: url(../fonts/overpass-latin-ext-700-normal.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: 'Cormorant Garamond'; font-weight: 400; font-display: swap; src: url(../fonts/cormorant-garamond-latin-400-normal.woff2) format('woff2'); }
-@font-face { font-family: 'Cormorant Garamond'; font-weight: 500; font-display: swap; src: url(../fonts/cormorant-garamond-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Cormorant Garamond'; font-weight: 600; font-display: swap; src: url(../fonts/cormorant-garamond-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: 'Cormorant Garamond'; font-weight: 600; font-display: swap; src: url(../fonts/cormorant-garamond-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 400; font-display: swap; src: url(../fonts/cormorant-garamond-latin-400-italic.woff2) format('woff2'); }
-@font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 500; font-display: swap; src: url(../fonts/cormorant-garamond-latin-500-italic.woff2) format('woff2'); }
+@font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 600; font-display: swap; src: url(../fonts/cormorant-garamond-latin-500-italic.woff2) format('woff2'); }
 
 :root {
   --green-900: #0B2A20; --green-800: #0F3D2E; --green-700: #16513B; --green-600: #1F6B4A; --green-400: #4E9C74; --green-100: #DDEBE2;
@@ -17,7 +20,7 @@
   --grad: linear-gradient(135deg, var(--green-800) 0%, var(--green-600) 100%);
   --paper: #F7F4EC; --paper-2: #EFEADD; --ink: #1F241F; --ink-soft: #5A5F57; --line: #DCD5C4;
   --card: #FFFFFF; --shadow: 0 6px 24px rgba(15, 61, 46, 0.18);
-  --font-ui: 'Inter', system-ui, sans-serif; --font-read: 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif; --font-read: 'Cormorant Garamond', Georgia, serif;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --nav-h: 64px;
 }
@@ -96,7 +99,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 
 /* Bottom nav */
 .bottomnav { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b); background: var(--grad); display: flex; z-index: 30; box-shadow: 0 -4px 18px rgba(0,0,0,0.18); }
-.bottomnav button { flex: 1; border: 0; background: transparent; color: rgba(244, 239, 223, 0.72); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; position: relative; }
+.bottomnav button { flex: 1; border: 0; background: transparent; color: rgba(244, 239, 223, 0.72); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; position: relative; }
 .bottomnav button.active { color: #FFF; }
 .bottomnav button.active::before { content: ''; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold); }
 
@@ -140,12 +143,12 @@ h3.section { font: 600 11px var(--font-ui); text-transform: uppercase; letter-sp
 .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 .seg { display: flex; background: var(--paper-2); border-radius: 12px; padding: 3px; gap: 3px; }
-.seg button { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 9px 6px; font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.seg button { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 9px 6px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .seg button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.12); font-weight: 600; }
 
 .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .toggle:last-child { border-bottom: 0; }
-.toggle .t-label { font-weight: 500; }
+.toggle .t-label { font-weight: 600; }
 .toggle .t-desc { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
 .switch { position: relative; width: 46px; height: 28px; flex: none; }
 .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
@@ -174,7 +177,7 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--in
 .rep .r-top { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-soft); font-weight: 600; letter-spacing: 0.02em; }
 .rep .age { white-space: nowrap; color: var(--green-700); }
 :root[data-theme="dark"] .rep .age { color: var(--gold-soft); }
-.rep .age.old { color: var(--ink-soft); font-weight: 500; }
+.rep .age.old { color: var(--ink-soft); font-weight: 600; }
 .rep h4 { margin: 5px 0 2px; font-size: 15px; font-weight: 600; line-height: 1.3; }
 .rep .r-sub { font-size: 12.5px; color: var(--ink-soft); }
 .rep .r-body { font-family: var(--font-read); font-size: 17px; line-height: 1.35; margin-top: 6px; white-space: pre-line; max-height: 4.1em; overflow: hidden; }
@@ -190,7 +193,7 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--in
 /* Feature card */
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 8px 0; }
 .kv dt { color: var(--ink-soft); }
-.kv dd { margin: 0; font-weight: 500; }
+.kv dd { margin: 0; font-weight: 600; }
 .kind-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-deep); }
 :root[data-theme="dark"] .kind-tag { color: var(--gold); }
 .coords { font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; }
@@ -216,3 +219,38 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--in
 :root[data-theme="dark"] .maker .tg { color: var(--gold-soft); }
 .credits { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
 .credits a { color: inherit; }
+
+/* Recording */
+.fab .rec-dot { fill: var(--red); stroke: none; }
+.fab.recording { background: var(--red); color: #FFF; border-color: transparent; animation: pulse 2s ease-in-out infinite; }
+.fab.recording .rec-dot { fill: #FFF; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(184,65,47,0.45); } 50% { box-shadow: 0 0 0 10px rgba(184,65,47,0); } }
+.rec-bar { margin-top: 8px; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--red); border-radius: 12px; padding: 8px 10px; box-shadow: var(--shadow); }
+.rec-bar.paused { border-left-color: var(--amber); }
+.rec-bar .rec-live { width: 10px; height: 10px; border-radius: 50%; background: var(--red); flex: none; animation: blink 1.2s steps(2) infinite; }
+.rec-bar.paused .rec-live { background: var(--amber); animation: none; }
+@keyframes blink { 50% { opacity: 0.2; } }
+.rec-stats { flex: 1; display: flex; gap: 12px; align-items: baseline; font-size: 13px; color: var(--ink-soft); flex-wrap: wrap; }
+.rec-stats b { font-size: 18px; color: var(--ink); }
+
+/* Trail details */
+.level { display: inline-block; font: 700 12px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 10px 4px; border-radius: 999px; color: #FFF; }
+.level.lv0 { background: #8A877D; } .level.lv1 { background: #2E8B57; } .level.lv2 { background: #3B78B8; }
+.level.lv3 { background: #C27A1A; } .level.lv4 { background: #B8412F; } .level.lv5 { background: #1C1C1C; box-shadow: inset 0 0 0 2px #C9A227; }
+.why { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.profile { width: 100%; height: 110px; display: block; background: var(--paper-2); border-radius: 10px; }
+.profile .p-area { fill: rgba(31,107,74,0.22); } .profile .p-line { fill: none; stroke: var(--green-600); stroke-width: 2; vector-effect: non-scaling-stroke; }
+:root[data-theme="dark"] .profile .p-area { fill: rgba(201,162,39,0.18); } :root[data-theme="dark"] .profile .p-line { stroke: var(--gold); }
+.photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.photo { position: relative; display: block; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--paper-2); }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; line-height: 1.2; color: #FFF; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 10px 4px 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Region search */
+.search-results .sr-region { background: var(--green-100); }
+.search-results .sr-region .r-sub { color: var(--green-700); font-weight: 600; }
+:root[data-theme="dark"] .search-results .sr-region .r-sub { color: var(--gold-soft); }
+.tag-trail { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
+.reg-item { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; }
+.reg-item .r-name { font-weight: 600; }
+.reg-item .r-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }

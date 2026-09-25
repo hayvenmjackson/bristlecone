@@ -87,6 +87,7 @@ public final class Storage {
             zo.write(("Bristlecone backup\nformat=1\ncreated=" + System.currentTimeMillis() + "\nmaps=" + includeMaps + "\n").getBytes("UTF-8"));
             zo.closeEntry();
             n += addDir(zo, kvDir, "kv/");
+            n += addDir(zo, new File(root, "tracks"), "tracks/");
             if (includeMaps) {
                 n += addDir(zo, new File(root, "regions"), "regions/");
                 n += addDir(zo, new File(root, "cache"), "cache/");
@@ -132,6 +133,7 @@ public final class Storage {
                 if (e.isDirectory() || name.contains("..")) continue;
                 String folder;
                 if (name.startsWith("kv/")) folder = "kv";
+                else if (name.startsWith("tracks/")) folder = "tracks";
                 else if (name.startsWith("regions/")) folder = "regions";
                 else if (name.startsWith("cache/")) folder = "cache";
                 else continue;

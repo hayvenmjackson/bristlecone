@@ -25,8 +25,13 @@ const world = {
     F({ class: 'national_forest', name: 'Medicine Bow National Forest', rank: 1 }, { type: 'Point', coordinates: P(-0.05, -0.04) })]),
   transportation: fc([F({ class: 'secondary' }, { type: 'LineString', coordinates: [P(-0.2, -0.03), P(-0.05, -0.028), P(0.05, -0.02), P(0.2, -0.01)] }),
     F({ class: 'minor' }, { type: 'LineString', coordinates: [P(0.0, -0.025), P(0.005, -0.005), P(0.012, 0.0)] }),
-    F({ class: 'track' }, { type: 'LineString', coordinates: [P(0.05, -0.02), P(0.07, 0.01), P(0.09, 0.03)] })]),
-  transportation_name: fc([F({ class: 'secondary', name: 'Snowy Range Road', ref: 'WY 130' }, { type: 'LineString', coordinates: [P(-0.2, -0.03), P(-0.05, -0.028), P(0.05, -0.02), P(0.2, -0.01)] })]),
+    F({ class: 'track' }, { type: 'LineString', coordinates: [P(0.05, -0.02), P(0.07, 0.01), P(0.09, 0.03)] }),
+    F({ class: 'minor', surface: 'unpaved' }, { type: 'LineString', coordinates: [P(0.045, -0.035), P(0.06, -0.05), P(0.08, -0.07)] }),
+    F({ class: 'motorway' }, { type: 'LineString', coordinates: [P(-0.3, -0.12), P(0, -0.11), P(0.3, -0.1)] }),
+    F({ class: 'primary' }, { type: 'LineString', coordinates: [P(0.12, -0.3), P(0.11, 0), P(0.1, 0.3)] })]),
+  transportation_name: fc([F({ class: 'secondary', name: 'Snowy Range Road', ref: '130', network: 'us-state', ref_length: 3 }, { type: 'LineString', coordinates: [P(-0.2, -0.03), P(-0.05, -0.028), P(0.05, -0.02), P(0.2, -0.01)] }),
+    F({ class: 'motorway', name: 'Interstate 80', ref: '80', network: 'us-interstate', ref_length: 2 }, { type: 'LineString', coordinates: [P(-0.3, -0.12), P(0, -0.11), P(0.3, -0.1)] }),
+    F({ class: 'primary', name: 'US 287', ref: '287', network: 'us-highway', ref_length: 3 }, { type: 'LineString', coordinates: [P(0.12, -0.3), P(0.11, 0), P(0.1, 0.3)] })]),
   boundary: fc([F({ admin_level: 4, maritime: 0 }, { type: 'LineString', coordinates: [P(0.06, -0.3), P(0.06, 0.3)] })]),
   place: fc([F({ class: 'village', name: 'Centennial' }, { type: 'Point', coordinates: P(0.045, -0.035) })]),
   mountain_peak: fc([F({ class: 'peak', name: 'Medicine Bow Peak', ele: 3662, ele_ft: 12014 }, { type: 'Point', coordinates: P(-0.01, 0.015) })])
@@ -44,6 +49,15 @@ const y2lat = (y, z) => { const n = Math.PI - 2 * Math.PI * y / 2 ** z; return 1
 function elev(lon, lat) {
   const g = (cx, cy, h, s) => h * Math.exp(-(((lon - cx) * 0.75) ** 2 + (lat - cy) ** 2) / (2 * s * s));
   return 2700 + g(C[0] - 0.01, C[1] + 0.015, 950, 0.02) + g(C[0] - 0.06, C[1] + 0.05, 600, 0.03) + g(C[0] + 0.05, C[1] + 0.04, 400, 0.025) + 150 * Math.sin(lon * 90) * Math.cos(lat * 70);
+}
+function fakePhoto(seedStr) {
+  const png = new PNG({ width: 256, height: 256 });
+  let h = 0; for (const c of seedStr) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) {
+    const o = (j * 256 + i) * 4, n = Math.sin((i + h % 97) / 17) * Math.cos((j + h % 53) / 23);
+    png.data[o] = 70 + 40 * n + (j < 90 ? 60 : 0); png.data[o + 1] = 95 + 45 * n + (j < 90 ? 70 : 0); png.data[o + 2] = 60 + 25 * n + (j < 90 ? 110 : 0); png.data[o + 3] = 255;
+  }
+  return PNG.sync.write(png);
 }
 function demTile(z, x, y) {
   const png = new PNG({ width: 256, height: 256 });
@@ -92,7 +106,27 @@ function mock(url, method, body) {
     if (m) { const b = vectorTile(+m[1], +m[2], +m[3]); return b ? { status: 200, contentType: 'application/x-protobuf', body: b } : { status: 204, body: '' }; }
   }
   if (u.hostname === 's3.amazonaws.com') { const m = u.pathname.match(/(\d+)\/(\d+)\/(\d+)\.png$/); return { status: 200, contentType: 'image/png', body: demTile(+m[1], +m[2], +m[3]) }; }
-  if (u.hostname.includes('overpass')) return json(overpass);
+  if (u.hostname.includes('overpass')) {
+    const q = decodeURIComponent(u.search);
+    if (q.includes('amenity')) return json({ elements: [{ type: 'way', id: 501, center: { lat: C[1] - 0.001, lon: C[0] + 0.013 }, tags: { amenity: 'parking', name: 'Lake Marie Lot', capacity: '40', fee: 'no', surface: 'paved' } }] });
+    if (q.includes('out tags center')) return json({ elements: [
+      { type: 'relation', id: 90, center: { lat: C[1] + 0.01, lon: C[0] - 0.01 }, tags: { name: 'Medicine Bow Peak Trail', route: 'hiking', wikidata: 'Q123', network: 'rwn' } },
+      { type: 'relation', id: 91, center: { lat: 43.75, lon: -110.8 }, tags: { name: 'Cascade Canyon Trail', route: 'hiking', network: 'rwn' } },
+      { type: 'way', id: 92, center: { lat: 43.0, lon: -109.6 }, tags: { name: 'Titcomb Basin Trail', highway: 'path', sac_scale: 'mountain_hiking' } }] });
+    return json(overpass);
+  }
+  if (u.hostname === 'mastodon.social') return json([
+    { url: 'https://mastodon.social/@a/1', created_at: ago(20), account: { acct: 'wyohiker' }, content: '<p>Snowy Range update: Medicine Bow Peak trail still has snow above the lake this morning, spikes helpful on the ridge. <img src=x onerror="window.__pwned=3"></p>' },
+    { url: 'https://mastodon.social/@b/2', created_at: ago(30), account: { acct: 'gearshop' }, content: '<p>Snowy Range sale! 30% off all tents this weekend with code SNOWY</p>' },
+    { url: 'https://mastodon.social/@c/3', created_at: ago(40), account: { acct: 'news' }, content: '<p>Wyoming senator votes on public lands bill near the Snowy Range</p>' }]);
+  if (u.hostname === 'noagendasocial.com') return json([{ url: 'https://noagendasocial.com/@d/4', created_at: ago(50), account: { acct: 'trailrunner' }, content: '<p>Ran the Lakes Trail near Centennial today, blowdown across the trail at mile 2 and mud at the lower crossing.</p>' }]);
+  if (u.hostname === 'gab.com') return { status: 403, contentType: 'text/plain', body: 'forbidden' };
+  if (u.hostname === 'en.wikipedia.org' && u.pathname.includes('/api.php')) return json({ query: { geosearch: [{ title: 'Medicine Bow Peak', lat: C[1], lon: C[0] }] } });
+  if (u.hostname === 'www.wikidata.org') return json({ entities: { Q123: { sitelinks: { enwiki: { site: 'enwiki', title: 'Medicine Bow Peak' } } } } });
+  if (u.hostname === 'en.wikipedia.org' && u.pathname.includes('/summary/')) return json({ title: 'Medicine Bow Peak', extract: 'Medicine Bow Peak is the highest point in the Snowy Range of southern Wyoming, reached by a trail from Lake Marie. The final ridge is rocky and exposed to wind.', content_urls: { desktop: { page: 'https://en.wikipedia.org/wiki/Medicine_Bow_Peak' } } });
+  if (u.hostname === 'commons.wikimedia.org') return json({ query: { pages: { 1: { title: 'File:Lake Marie and Medicine Bow Peak.jpg', imageinfo: [{ thumburl: 'https://upload.wikimedia.org/thumb/lake.png', descriptionurl: 'https://commons.wikimedia.org/wiki/File:Lake_Marie.jpg', mime: 'image/jpeg', extmetadata: { Artist: { value: '<a href="x">J. Photographer</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' } } }] },
+    2: { title: 'File:Snowy Range ridge.jpg', imageinfo: [{ thumburl: 'https://upload.wikimedia.org/thumb/ridge.png', descriptionurl: 'https://commons.wikimedia.org/wiki/File:Ridge.jpg', mime: 'image/jpeg', extmetadata: { Artist: { value: 'A. Hiker' }, LicenseShortName: { value: 'CC BY 4.0' } } }] } } } });
+  if (u.hostname === 'upload.wikimedia.org' || u.hostname === 'tiles.maps.eox.at' || (u.hostname === 'basemap.nationalmap.gov' && u.pathname.includes('Imagery'))) return { status: 200, contentType: 'image/png', body: fakePhoto(u.pathname) };
   if (u.hostname === 'services.arcgis.com') return json(padus);
   if (u.hostname === 'tigerweb.geo.census.gov') return json(u.pathname.includes('/2/') ? tribal : fc([]));
   if (u.hostname === 'services3.arcgis.com') return json(fire);
@@ -100,6 +134,8 @@ function mock(url, method, body) {
   if (u.hostname === 'api.openstreetmap.org') return json(notes);
   if (u.hostname === 'nominatim.openstreetmap.org') return json(u.pathname.includes('search') ? [{ name: 'Lake Marie', display_name: 'Lake Marie, Albany County, Wyoming, United States', lat: String(C[1] - 0.012), lon: String(C[0] + 0.02), boundingbox: [String(C[1] - 0.02), String(C[1]), String(C[0]), String(C[0] + 0.04)] }] : reverse);
   if (u.hostname === 'developer.nps.gov') {
+    if (u.pathname.endsWith('/thingstodo')) return json({ data: [{ title: 'Hike Medicine Bow Peak Trail', shortDescription: 'A steep climb to the summit ridge.', longDescription: '<p>This steep route climbs to the summit ridge. Near the top, iron rungs help on a short exposed ledge. Not for those with a fear of heights.</p>', duration: '3-4 Hours', url: 'https://www.nps.gov/thingstodo/x.htm', images: [] }] });
+    if (u.pathname.endsWith('/parkinglots')) return json({ data: [{ name: 'Mirror Lake Picnic Parking', description: 'Paved lot, fills by 9 am on summer weekends.', latitude: String(C[1] - 0.002), longitude: String(C[0] + 0.011), fees: [] }] });
     if (u.pathname.endsWith('/parks')) return json({ data: [{ parkCode: 'test', fullName: 'Test National Park', latitude: String(C[1]), longitude: String(C[0]) }] });
     // Hostile alert: markup that would run script if parsed unsafely, and a javascript: link.
     return json({ data: [{ title: 'Road closed at Lake Marie', description: '<p>Closed for repairs.</p><img src=x onerror="window.__pwned=1">', parkCode: 'test', lastIndexedDate: ago(3), category: 'Park Closure', url: 'javascript:window.__pwned=2' }] });
@@ -200,6 +236,69 @@ const server = http.createServer((req, res) => {
   pg = await page(Object.assign({}, base, { appearance: 'auto', view: { center: C, zoom: 11.5 } }), 'auto');
   await wait(pg, 4000);
   await shot(pg, '12-map-auto-z11');
+  await pg.close();
+
+  // ---------------- 1.1 features
+  // Shields, unpaved road, relief at a mid zoom
+  pg = await page(Object.assign({}, base, { view: { center: [C[0] + 0.05, C[1] - 0.06], zoom: 11.3 } }), 'roads');
+  await wait(pg, 4500); await shot(pg, '20-roads-shields');
+  await pg.close();
+
+  // Recording flow (browser stand-in for the service)
+  pg = await page(base, 'record');
+  await wait(pg, 3000);
+  await pg.click('#btn-record'); await wait(pg, 500); await shot(pg, '21-record-intro');
+  await pg.click('#rec-go'); await wait(pg, 400);
+  for (let i = 0; i < 25; i++) {
+    await pg.evaluate(([c, i]) => window.bcNative.onLocation(JSON.stringify({ mode: 'gps', lat: c[1] + i * 0.0004, lon: c[0] + 0.012 - i * 0.0005, acc: 5, alt: 3150 + i * 6, time: Date.now() - (25 - i) * 60000, gpsEnabled: true })), [C, i]);
+  }
+  await wait(pg, 2600); await shot(pg, '22-recording');
+  await pg.click('#rec-stop'); await wait(pg, 2500); await shot(pg, '23-hike-saved');
+  await pg.click('#h-card'); await wait(pg, 7000);
+  const card = await pg.evaluate(() => window.__lastShare);
+  if (card && card.b64) { fs.writeFileSync(path.join(OUT, '24-route-card.png'), Buffer.from(card.b64, 'base64')); console.log('route card', card.name, card.mime, card.text); }
+  else errors.push('route card not produced');
+  await pg.click('[data-tab="places"]'); await wait(pg, 700); await shot(pg, '25-places-hikes');
+  await pg.close();
+
+  // Trail details (tap the Medicine Bow Peak trail)
+  pg = await page(Object.assign({}, base, { view: { center: [C[0] + 0.004, C[1] + 0.006], zoom: 15.2 } }), 'trail');
+  await wait(pg, 4500);
+  const tb = await pg.locator('#map').boundingBox();
+  await pg.mouse.click(tb.x + tb.width / 2, tb.y + tb.height / 2);
+  await wait(pg, 3000); await shot(pg, '26-trail-peek');
+  const hasDetails = await pg.locator('[data-act="details"]').count();
+  if (hasDetails) {
+    await pg.click('[data-act="details"]'); await wait(pg, 5000); await shot(pg, '27-trail-details');
+    await pg.evaluate(() => { const b = document.getElementById('sheet-body'); b.scrollTop = b.scrollHeight; }); await wait(pg, 1500); await shot(pg, '28-trail-details-more');
+    const txt = await pg.evaluate(() => document.getElementById('sheet-body').innerText);
+    console.log('rating shown:', (txt.match(/(Easy|Moderate|Hard|Very Hard|Expert Only)/) || [])[0], '| reasons:', (txt.match(/mentions[^\n]*/) || [''])[0]);
+  } else errors.push('trail peek had no details button');
+  await pg.close();
+
+  // Region search
+  pg = await page(Object.assign({}, base, { view: { center: C, zoom: 9 } }), 'region');
+  await wait(pg, 3000);
+  await pg.fill('#search', 'Wyoming mountains'); await pg.press('#search', 'Enter'); await wait(pg, 1500); await shot(pg, '29-region-search');
+  await pg.click('[data-region="0"]'); await wait(pg, 3500); await shot(pg, '30-region-trails');
+  await pg.close();
+
+  // Conditions with social reports (ad and political post must be filtered, script must not run)
+  pg = await page(base, 'social');
+  await wait(pg, 3000);
+  await pg.click('[data-tab="conditions"]'); await wait(pg, 3500); await shot(pg, '31-conditions-social');
+  const soc = await pg.evaluate(() => ({ text: document.getElementById('sheet-body').innerText, pwned: window.__pwned || 0 }));
+  const okSoc = soc.text.includes('wyohiker') && soc.text.includes('trailrunner') && !soc.text.includes('gearshop') && !soc.text.includes('senator') && !soc.pwned;
+  if (!okSoc) errors.push('SOCIAL CHECK FAILED ' + JSON.stringify({ pwned: soc.pwned, hiker: soc.text.includes('wyohiker'), runner: soc.text.includes('trailrunner'), ad: soc.text.includes('gearshop'), pol: soc.text.includes('senator') }));
+  else console.log('social check passed: 2 reports kept, ad and political post filtered, no script ran');
+  await pg.click('[data-tab="more"]'); await wait(pg, 800);
+  await pg.evaluate(() => { const b = document.getElementById('sheet-body'); const h = [...b.querySelectorAll('h3')].find(x => /social/i.test(x.textContent)); if (h) b.scrollTop = h.offsetTop - 20; });
+  await wait(pg, 400); await shot(pg, '32-settings-social');
+  await pg.close();
+
+  // Satellite hybrid
+  pg = await page(Object.assign({}, base, { base: 'satellite', view: { center: C, zoom: 13 } }), 'satellite');
+  await wait(pg, 4500); await shot(pg, '33-satellite-hybrid');
   await pg.close();
 
   await browser.close(); server.close();

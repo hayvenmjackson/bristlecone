@@ -34,6 +34,8 @@ public class MainActivity extends Activity {
     static final int REQ_BACKUP = 11;
     static final int REQ_RESTORE = 12;
     static final int REQ_EXPORT = 13;
+    static final int REQ_HEALTH = 21;
+    static final int REQ_RECORD = 22;
 
     WebView web;
     NetCache net;
@@ -45,12 +47,17 @@ public class MainActivity extends Activity {
     boolean backupIncludeMaps;
     byte[] pendingExport;
     boolean wantLocation;
+    TrackStore tracks;
+    String openedFor;
+    String pendingTrackTitle, pendingTrackText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         net = new NetCache(this);
         storage = new Storage(this);
+        tracks = new TrackStore(this);
+        if (getIntent() != null && "android.intent.action.VIEW_PERMISSION_USAGE".equals(getIntent().getAction())) openedFor = "health-privacy";
         regions = new RegionManager(this, net, new RegionManager.Listener() {
             @Override public void onProgress(JSONObject s) { callJs("bcNative.onRegionProgress", s.toString()); }
         });
@@ -149,6 +156,48 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_PERM) {
             if (hasLocationPermission()) location.start();
             notifyPermission();
+        } else if (requestCode == REQ_HEALTH) {
+            callJs("bcNative.onHealthPermission", "{\"granted\":" + HealthSync.granted(this) + "}");
+        } else if (requestCode == REQ_RECORD) {
+            if (hasLocationPermission()) TrackService.send(this, TrackService.ACTION_START, pendingTrackTitle, pendingTrackText);
+            callJs("bcNative.onRecording", "{\"started\":" + hasLocationPermission() + "}");
+        }
+    }
+
+    /** Starts recording after making sure location (and, on Android 13+, notifications) are allowed. */
+    void startRecording(String title, String text) {
+        pendingTrackTitle = title; pendingTrackText = text;
+        List<String> need = new ArrayList<>();
+        if (!hasLocationPermission()) need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
+        if (Build.VERSION.SDK_INT >= 29 && checkSelfPermission("android.permission.ACTIVITY_RECOGNITION") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.ACTIVITY_RECOGNITION");
+        if (need.isEmpty()) {
+            TrackService.send(this, TrackService.ACTION_START, title, text);
+            callJs("bcNative.onRecording", "{\"started\":true}");
+        } else {
+            requestPermissions(need.toArray(new String[0]), REQ_RECORD);
+        }
+    }
+
+    void requestHealth() {
+        if (!HealthSync.available(this)) { callJs("bcNative.onHealthPermission", "{\"granted\":false,\"unavailable\":true}"); return; }
+        if (HealthSync.granted(this)) { callJs("bcNative.onHealthPermission", "{\"granted\":true}"); return; }
+        requestPermissions(HealthSync.PERMISSIONS, REQ_HEALTH);
+    }
+
+    void healthResult(String id, boolean ok, String error) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("id", id); o.put("ok", ok); o.put("error", error == null ? JSONObject.NULL : error);
+            callJs("bcNative.onHealthResult", o.toString());
+        } catch (Exception ignored) { }
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && "android.intent.action.VIEW_PERMISSION_USAGE".equals(intent.getAction())) {
+            openedFor = "health-privacy";
+            callJs("bcNative.onOpenedFor", "{\"what\":\"health-privacy\"}");
         }
     }
 

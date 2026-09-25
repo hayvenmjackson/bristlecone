@@ -32,6 +32,24 @@
   }
   const r5 = (v) => Math.round(v * 1e5) / 1e5;
 
+  // Approximate outline of Canada (clockwise from the Alaska border), used to pick imagery and
+  // report sources. Accurate to within about 20 miles, which is all those choices need.
+  const CANADA = [[-141, 60.3], [-137.5, 59.2], [-135.5, 59.8], [-133.4, 58.4], [-131.6, 56.6], [-130.1, 55.9], [-130.6, 54.7],
+    [-134.5, 54.5], [-133.5, 51.5], [-128.5, 48.3], [-123.2, 48.25], [-123.2, 49.0], [-95.15, 49.0], [-94.8, 49.35], [-94.6, 48.7],
+    [-93.0, 48.6], [-91.0, 48.2], [-89.6, 48.0], [-88.4, 48.3], [-84.8, 46.9], [-84.1, 46.5], [-83.5, 46.0], [-82.4, 45.3],
+    [-82.4, 43.0], [-82.93, 42.35], [-83.07, 42.305], [-83.13, 42.0], [-81.0, 42.2], [-79.1, 42.85], [-79.05, 43.25], [-79.2, 43.5], [-76.5, 43.6],
+    [-76.3, 44.2], [-75.3, 44.9], [-74.7, 45.0], [-71.5, 45.0], [-70.8, 45.4], [-70.3, 46.0], [-70.0, 46.7], [-69.2, 47.45],
+    [-68.2, 47.35], [-67.8, 47.07], [-67.78, 45.8], [-67.4, 45.6], [-66.9, 44.8], [-66.0, 43.3], [-50, 43.3], [-50, 84], [-141, 84]];
+  function inRing(lon, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+  function countryOf(lon, lat) { return inRing(lon, lat, CANADA) ? 'ca' : 'us'; }
+
   function haversine(a, b) {
     const R = 6371008.8, rad = Math.PI / 180;
     const dp = (b[1] - a[1]) * rad, dl = (b[0] - a[0]) * rad;
@@ -94,12 +112,18 @@
 
   function parseOverpass(j) {
     const trails = [], points = [];
-    const routeNames = {};
+    const routeNames = {}, routeRel = {};
     (j.elements || []).forEach(el => {
       if (el.type === 'relation' && el.members) {
         const nm = el.tags && (el.tags.name || el.tags.ref);
         if (!nm) return;
-        el.members.forEach(m => { if (m.type === 'way') (routeNames[m.ref] = routeNames[m.ref] || []).push(nm); });
+        el.members.forEach(m => {
+          if (m.type !== 'way') return;
+          (routeNames[m.ref] = routeNames[m.ref] || []).push(nm);
+          // Remember the most specific hiking route (smallest relation) for trail details.
+          const cur = routeRel[m.ref];
+          if (!cur || el.members.length < cur.n) routeRel[m.ref] = { id: el.id, n: el.members.length, wd: el.tags.wikidata, wp: el.tags.wikipedia };
+        });
       }
     });
     (j.elements || []).forEach(el => {
@@ -112,7 +136,10 @@
           sac: t.sac_scale, difficulty: t['piste:difficulty'], surface: t.surface, vis: t.trail_visibility,
           access: t.access, surveyed: t.check_date || t['survey:date'] || t['check_date:surface'], mtb: t['mtb:scale'],
           width: t.width, lit: t.lit, oneway: t.oneway, routes: routes.join(' · ') || undefined,
-          ref: t.ref, grooming: t['piste:grooming'], seasonal: t.seasonal, fee: t.fee
+          ref: t.ref, grooming: t['piste:grooming'], seasonal: t.seasonal, fee: t.fee,
+          rel: routeRel[el.id] ? routeRel[el.id].id : undefined,
+          wikidata: t.wikidata || (routeRel[el.id] && routeRel[el.id].wd), wikipedia: t.wikipedia || (routeRel[el.id] && routeRel[el.id].wp),
+          ladder: t.ladder, hazard: t.hazard, vf: t.via_ferrata_scale, scramble: t.scramble, desc: t.description
         };
         Object.keys(props).forEach(k => props[k] === undefined && delete props[k]);
         trails.push({ type: 'Feature', id: el.id, properties: props, geometry: { type: 'LineString', coordinates: el.geometry.map(g => [r5(g.lon), r5(g.lat)]) } });
@@ -311,7 +338,7 @@
   }
 
   window.BcData = {
-    TRAIL_Z, LAND_Z, tilesFor, tileBbox, lon2x, lat2y, haversine,
+    countryOf, TRAIL_Z, LAND_Z, tilesFor, tileBbox, lon2x, lat2y, haversine,
     loadTrailCell, overpassUrls, loadLandCell, landUrls, loadFires, fireUrl, loadAvyUS, AVY_US,
     loadCrags, search, reverse, reverseUrl, formatAddress, getJson, classify, parseOverpass, esriToGeoJson
   };

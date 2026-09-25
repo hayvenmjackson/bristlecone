@@ -144,7 +144,64 @@
     return { items: list.map(p => ({ src: 'mine', title: I18N.t('rep.' + (p.cat || 'other')) + (p.name ? ' · ' + p.name : ''), body: p.note || '', time: p.time, severity: p.cat === 'closure' ? 'closure' : '', coords: [p.lon, p.lat] })) };
   }
 
-  const SOURCES = [['mine', mine], ['nws', nws], ['eccc', eccc], ['nps', nps], ['avy', avyUS], ['avcan', avyCA], ['fire', fires], ['osm', osmNotes]];
+  // ------------------------------------------------------------------ Social: Mastodon-compatible servers
+  // Hashtag timelines are public on most servers. Posts only appear if the on-phone filter judges
+  // them to be first-hand trail condition reports, so ordinary chatter (political or otherwise) is dropped.
+  const DEFAULT_INSTANCES = [
+    { host: 'mastodon.social', on: true },
+    { host: 'noagendasocial.com', on: true },
+    { host: 'gab.com', on: true }
+  ];
+  const toTag = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+  function socialTags(ctx) {
+    const names = [ctx.target, ctx.target && String(ctx.target).replace(/\b(Trail|Loop|Path|Trailhead)\b/gi, '').trim(), ctx.label, ctx.stateName].filter(x => x && x.length > 2);
+    return Array.from(new Set(names.map(toTag).filter(x => x.length > 2))).slice(0, 4);
+  }
+  function tagUrl(host, tags) {
+    return 'https://' + host + '/api/v1/timelines/tag/' + encodeURIComponent(tags[0]) + '?limit=40' + tags.slice(1).map(x => '&any%5B%5D=' + encodeURIComponent(x)).join('');
+  }
+  async function social(ctx) {
+    const cfg = ctx.social || {};
+    if (cfg.enabled === false || !window.BcReportFilter) return { na: true };
+    const hosts = (cfg.instances || DEFAULT_INSTANCES).filter(i => i.on).map(i => i.host);
+    if (!hosts.length) return { na: true };
+    const place = socialTags(ctx);
+    const generic = ['TrailConditions', 'TrailReport', 'TrailUpdate', 'Hiking'];
+    const words = [ctx.target, ctx.label, ctx.stateName].filter(Boolean).map(x => String(x).toLowerCase().replace(/\b(trail|loop|path)\b/g, '').trim()).filter(x => x.length > 3);
+    const seen = new Set(), items = [], perHost = {};
+    let meta = null, anyOk = false;
+    await Promise.all(hosts.map(async host => {
+      const urls = (place.length ? [tagUrl(host, place)] : []).concat([tagUrl(host, generic)]);
+      for (const [qi, url] of urls.entries()) {
+        try {
+          const r = await BcData.getJson(url);
+          anyOk = true; meta = meta || r.meta;
+          (Array.isArray(r.json) ? r.json : []).forEach(st => {
+            const s = st.reblog || st;
+            if (!s || !s.content || seen.has(s.url || s.uri)) return;
+            const text = strip(s.content);
+            const lower = text.toLowerCase();
+            // Generic hashtags must also name this place to count as relevant.
+            if (qi === urls.length - 1 && place.length && !words.some(w => lower.includes(w))) return;
+            if (!place.length && !words.some(w => lower.includes(w))) return;
+            const p = BcReportFilter.score(text);
+            if (p < BcReportFilter.threshold) return;
+            const time = toTime(s.created_at);
+            if (time && Date.now() - time > 45 * 86400000) return;
+            seen.add(s.url || s.uri);
+            perHost[host] = (perHost[host] || 0) + 1;
+            const acct = (s.account && (s.account.acct || s.account.username)) || '';
+            items.push({ src: 'social', title: text.split(/(?<=[.!?])\s/)[0].slice(0, 110), body: text, time, url: s.url || s.uri || null,
+              sub: '@' + acct.split('@')[0] + ' · ' + host, host, score: p, severity: /\b(closed|closure|washed out|bridge out|avalanche|rockfall|fermé|cerrado)\b/i.test(text) ? 'closure' : '' });
+          });
+        } catch (e) { perHost[host] = perHost[host] || 0; }
+      }
+    }));
+    if (!anyOk) throw new Error('social unavailable');
+    return { meta, items, perHost };
+  }
+
+  const SOURCES = [['mine', mine], ['nws', nws], ['eccc', eccc], ['nps', nps], ['avy', avyUS], ['avcan', avyCA], ['fire', fires], ['osm', osmNotes], ['social', social]];
 
   async function gather(ctx) {
     const status = {};
@@ -166,5 +223,5 @@
     return { items: all, status, oldestSaved };
   }
 
-  window.BcReports = { gather, SOURCES: SOURCES.map(s => s[0]), pointInGeom };
+  window.BcReports = { gather, SOURCES: SOURCES.map(s => s[0]), pointInGeom, strip, DEFAULT_INSTANCES, socialTags, toTag };
 })();

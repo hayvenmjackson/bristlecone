@@ -7,3 +7,4 @@ tools/debug.keystore
 *.keystore
 *.jks
 .DS_Store
+.sdk/

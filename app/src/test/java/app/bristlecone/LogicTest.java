@@ -45,6 +45,23 @@ public class LogicTest {
         check(!CachePolicy.key("https://tiles.openfreemap.org/planet/20260915_001001_pt/12/1/2.pbf").equals(CachePolicy.key("https://tiles.openfreemap.org/planet/20260915_001001_pt/12/1/3.pbf")), "distinct tiles distinct keys");
         check(CachePolicy.host("https://api.weather.gov:443/x").equals("api.weather.gov"), "host parse");
 
+
+        // Hike statistics: jitter ignored, distance and climb counted, gaps not counted as moving
+        TrackStats ts = new TrackStats();
+        long t0 = 1_000_000L;
+        for (int i = 0; i <= 100; i++) {
+            double lat = 44.0 + i * 0.00009;                   // about 10 m per step north
+            double jitter = (i % 2 == 0 ? 1 : -1) * 0.00001;   // about 1 m of GPS wobble east-west
+            ts.add(t0 + i * 5000L, lat, -71.0 + jitter, 5, 300 + i * 2.0, 1000 + i * 2.0);
+        }
+        for (int i = 0; i < 20; i++) ts.add(t0 + 505000L + i * 5000L, 44.009 + 0.000005 * (i % 3), -71.0, 5, 500, 1200);
+        check(Math.abs(ts.distance() - 1000) < 30, "hike distance ~1,000 m (got " + Math.round(ts.distance()) + ")");
+        check(Math.abs(ts.gain() - 200) < 8 && ts.usedBarometer(), "climb from barometer ~200 m (got " + Math.round(ts.gain()) + ")");
+        check(Math.abs(ts.movingMs() - 500000) < 10000, "moving time excludes standing still (" + ts.movingMs() / 1000 + " s)");
+        check(!ts.add(t0 + 700000L, 44.02, -71.0, 80, 0, 0), "rejects a 80 m accuracy fix");
+        TrackStats flat = new TrackStats();
+        for (int i = 0; i < 200; i++) flat.add(t0 + i * 3000L, 44.0 + i * 0.00005, -71.0, 5, 300 + ((i % 4) - 1.5) * 3, Double.NaN);
+        check(flat.gain() < 10 && !flat.usedBarometer(), "GPS altitude noise does not count as climbing (" + Math.round(flat.gain()) + " m)");
         System.out.println(fails == 0 ? "ALL PASS" : fails + " FAILED");
         System.exit(fails == 0 ? 0 : 1);
     }

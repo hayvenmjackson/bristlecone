@@ -40,7 +40,7 @@
     state: { places: Native.kvGetJson('places') || [], me: null, follow: false, dark: false, regionProgress: {}, placeCache: {} },
     settings: S
   };
-  const data = { trails: FC(), points: FC(), crags: FC(), lands: FC(), fire: FC(), avy: FC(), mine: FC(), me: FC(), hl: FC() };
+  const data = { trails: FC(), points: FC(), crags: FC(), lands: FC(), fire: FC(), avy: FC(), mine: FC(), me: FC(), hl: FC(), track: FC() };
   const saveSettings = () => Native.kvPutJson('settings', S);
 
   // ------------------------------------------------------------------ Formatting
@@ -184,56 +184,19 @@
 
   // ------------------------------------------------------------------ Map
   let map = null, scaleCtl = null;
+  /** The base map actually drawn: "satellite" resolves to US aerials or Sentinel-2 by location. */
+  function effectiveBase() {
+    if (S.base !== 'satellite') return S.base;
+    const c = map ? map.getCenter() : { lng: S.view.center[0], lat: S.view.center[1] };
+    return BcData.countryOf(c.lng, c.lat) === 'us' ? 'satNaip' : 'satS2';
+  }
+  let drawnBase = null;
   function styleOpts() {
-    return { dark: App.state.dark, units: S.units, lang: S.lang, base: S.base, layers: S.layers, data, contourUrl: contourUrl() };
+    drawnBase = effectiveBase();
+    return { dark: App.state.dark, units: S.units, lang: S.lang, base: drawnBase, layers: S.layers, data, contourUrl: contourUrl() };
   }
   function applyStyle() { map.setStyle(BcStyle.build(styleOpts())); }
   function setData(id) { const s = map && map.getSource(id); if (s) s.setData(data[id]); }
-
-  function makeIcons() {
-    const mk = (name, size, draw) => {
-      const dpr = 2, c = document.createElement('canvas');
-      c.width = size * dpr; c.height = size * dpr;
-      const g = c.getContext('2d'); g.scale(dpr, dpr); draw(g, size);
-      return { name, img: g.getImageData(0, 0, size * dpr, size * dpr), pixelRatio: dpr };
-    };
-    return [
-      mk('bc-trailhead', 26, (g, s) => {
-        g.fillStyle = '#0F3D2E'; g.strokeStyle = '#C9A227'; g.lineWidth = 2;
-        g.beginPath(); g.roundRect ? g.roundRect(2, 2, s - 4, s - 4, 6) : g.rect(2, 2, s - 4, s - 4); g.fill(); g.stroke();
-        g.strokeStyle = '#F4EFDF'; g.lineWidth = 2; g.beginPath(); g.moveTo(9, 20); g.lineTo(9, 7); g.lineTo(18, 10); g.lineTo(9, 13); g.stroke();
-      }),
-      mk('bc-crag', 20, (g, s) => {
-        g.fillStyle = '#6B5A3E'; g.strokeStyle = '#FFFFFF'; g.lineWidth = 1.5;
-        g.beginPath(); g.moveTo(s / 2, 2); g.lineTo(s - 2, s - 3); g.lineTo(2, s - 3); g.closePath(); g.fill(); g.stroke();
-        g.fillStyle = '#C9A227'; g.fillRect(s / 2 - 1.5, 7, 3, 6);
-      }),
-      mk('bc-peak', 14, (g, s) => {
-        g.fillStyle = '#5A4632'; g.beginPath(); g.moveTo(s / 2, 1); g.lineTo(s - 1, s - 2); g.lineTo(1, s - 2); g.closePath(); g.fill();
-      }),
-      mk('bc-pin', 28, (g) => {
-        g.fillStyle = '#1F6B4A'; g.strokeStyle = '#FFFFFF'; g.lineWidth = 2;
-        g.beginPath(); g.moveTo(14, 27); g.bezierCurveTo(4, 17, 4, 12, 4, 10); g.arc(14, 10, 10, Math.PI, 0); g.bezierCurveTo(24, 12, 24, 17, 14, 27); g.fill(); g.stroke();
-        g.fillStyle = '#C9A227'; g.beginPath(); g.arc(14, 10, 3.5, 0, Math.PI * 2); g.fill();
-      }),
-      mk('bc-report', 28, (g) => {
-        g.fillStyle = '#C9A227'; g.strokeStyle = '#FFFFFF'; g.lineWidth = 2;
-        g.beginPath(); g.moveTo(14, 27); g.bezierCurveTo(4, 17, 4, 12, 4, 10); g.arc(14, 10, 10, Math.PI, 0); g.bezierCurveTo(24, 12, 24, 17, 14, 27); g.fill(); g.stroke();
-        g.fillStyle = '#0F3D2E'; g.fillRect(12.8, 4.5, 2.4, 7); g.fillRect(12.8, 13, 2.4, 2.4);
-      }),
-      mk('bc-heading', 44, (g, s) => {
-        const grd = g.createRadialGradient(s / 2, s / 2, 2, s / 2, s / 2, s / 2);
-        grd.addColorStop(0, 'rgba(31,107,74,0.55)'); grd.addColorStop(1, 'rgba(31,107,74,0)');
-        g.fillStyle = grd; g.beginPath(); g.moveTo(s / 2, s / 2); g.arc(s / 2, s / 2, s / 2, -Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5); g.closePath(); g.fill();
-      }),
-      mk('bc-heading-est', 44, (g, s) => {
-        const grd = g.createRadialGradient(s / 2, s / 2, 2, s / 2, s / 2, s / 2);
-        grd.addColorStop(0, 'rgba(217,144,26,0.55)'); grd.addColorStop(1, 'rgba(217,144,26,0)');
-        g.fillStyle = grd; g.beginPath(); g.moveTo(s / 2, s / 2); g.arc(s / 2, s / 2, s / 2, -Math.PI / 2 - 0.7, -Math.PI / 2 + 0.7); g.closePath(); g.fill();
-      })
-    ];
-  }
-  let icons = null;
 
   function initMap() {
     map = new maplibregl.Map({
@@ -243,9 +206,11 @@
     scaleCtl = new maplibregl.ScaleControl({ unit: imperial() ? 'imperial' : 'metric', maxWidth: 90 });
     map.addControl(scaleCtl, 'bottom-left');
     map.on('styleimagemissing', (e) => {
-      if (!icons) icons = makeIcons();
-      const ic = icons.find(i => i.name === e.id);
-      if (ic && !map.hasImage(ic.name)) map.addImage(ic.name, ic.img, { pixelRatio: ic.pixelRatio });
+      if (map.hasImage(e.id)) return;
+      const ic = BcIcons.get(e.id);
+      // Unknown ids get a blank pixel so MapLibre does not keep asking for them.
+      if (ic) map.addImage(e.id, ic.img, { pixelRatio: ic.pixelRatio });
+      else map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
     map.on('load', () => {
       splashDone(); refreshData();
@@ -255,6 +220,7 @@
     });
     map.on('moveend', () => {
       S.view = { center: [map.getCenter().lng, map.getCenter().lat], zoom: map.getZoom() };
+      if (S.base === 'satellite' && effectiveBase() !== drawnBase) applyStyle();
       saveSettingsSoon();
       refreshDataSoon();
     });
@@ -422,6 +388,7 @@
   }
   function onLocation(fix) {
     App.state.me = fix;
+    Native._webFix(fix);
     const chip = $('#loc-chip'), banner = $('#estimate-banner');
     if (fix.mode === 'none' || fix.lat == null) {
       chip.classList.remove('hidden', 'est'); chip.classList.add('off');
@@ -481,7 +448,7 @@
       html += '<div class="card"><div class="kind-tag">' + esc(t('ft.coords')) + '</div><div class="coords" style="margin-top:6px">' + esc(coordText(me.lon, me.lat)) + '</div><div class="coords muted small">' + esc(dms(me.lat, 'N', 'S') + '  ' + dms(me.lon, 'E', 'W')) + '</div>';
       const ele = me.alt != null ? me.alt : null;
       if (ele != null) html += '<div class="small muted" style="margin-top:6px">' + esc(t('ft.elevation')) + ': ' + esc(fmtEle(ele)) + '</div>';
-      html += '<div class="btns"><button class="btn small" id="li-copy">' + ICON.copy + esc(t('ft.copy')) + '</button><button class="btn small" id="li-share">' + ICON.share + esc(t('pl.share')) + '</button><button class="btn small" id="li-pin">' + ICON.pin + esc(t('pl.saveHere')) + '</button></div></div>';
+      html += '<div class="btns"><button class="btn small" id="li-copy">' + ICON.copy + esc(t('ft.copy')) + '</button><button class="btn small" id="li-share">' + ICON.share + esc(t('pl.share')) + '</button><button class="btn small" id="li-pin">' + ICON.pin + esc(t('pl.saveHere')) + '</button><button class="btn small" id="li-sms">' + ICON.share + esc(t('rec.textLocation')) + '</button></div></div>';
     }
     html += '<p class="small muted">' + esc(inf.strideSamples > 0 ? t('loc.stride', { n: inf.strideSamples }) : t('loc.strideNew')) + '</p>';
     html += '<h3 class="section">' + esc(t('about.estimates')) + '</h3><p class="read">' + esc(t('about.estimatesBody')) + '</p>';
@@ -489,6 +456,14 @@
     const b1 = $('#li-copy', body); if (b1) b1.onclick = () => { Native.copy(coordText(me.lon, me.lat)); toast(t('ft.copied')); };
     const b2 = $('#li-share', body); if (b2) b2.onclick = () => Native.share(coordText(me.lon, me.lat) + '\nhttps://www.openstreetmap.org/?mlat=' + me.lat.toFixed(5) + '&mlon=' + me.lon.toFixed(5) + '#map=15/' + me.lat.toFixed(5) + '/' + me.lon.toFixed(5));
     const b3 = $('#li-pin', body); if (b3) b3.onclick = () => openPlaceEditor({ lon: me.lon, lat: me.lat });
+    const b4 = $('#li-sms', body); if (b4) b4.onclick = () => textLocation(me);
+  }
+
+  /** Opens the messaging app with your position, its accuracy and a map link. */
+  function textLocation(me) {
+    const est = me.mode && me.mode !== 'gps';
+    const link = 'https://www.openstreetmap.org/?mlat=' + me.lat.toFixed(5) + '&mlon=' + me.lon.toFixed(5) + '#map=15/' + me.lat.toFixed(5) + '/' + me.lon.toFixed(5);
+    Native.sms(t(est ? 'rec.smsEstimate' : 'rec.smsBody', { coords: coordText(me.lon, me.lat), acc: fmtLen(me.acc || 0), link, time: fmtTime(Date.now()) }));
   }
 
   // ------------------------------------------------------------------ Feature cards
@@ -521,12 +496,13 @@
       '<button class="btn small" data-act="copy">' + ICON.copy + esc(t('ft.copy')) + '</button></div></div>';
   }
   function actions(list) {
-    const m = { directions: [ICON.nav, 'ft.directions'], conditions: [ICON.cond, 'ft.conditions'], pin: [ICON.pin, 'ft.pin'], share: [ICON.share, 'pl.share'] };
+    const m = { details: [ICON.route, 'td.open'], directions: [ICON.nav, 'ft.directions'], conditions: [ICON.cond, 'ft.conditions'], pin: [ICON.pin, 'ft.pin'], share: [ICON.share, 'pl.share'] };
     return '<div class="btns">' + list.map((a, i) => '<button class="btn small' + (i === 0 ? ' primary' : '') + '" data-act="' + a + '">' + m[a][0] + esc(t(m[a][1])) + '</button>').join('') + '</div>';
   }
   function bindActions(body, lon, lat, name) {
     $$('[data-act]', body).forEach(b => b.addEventListener('click', () => {
       const a = b.dataset.act;
+      if (a === 'details') return; // wired by the trail details module
       if (a === 'copy') { Native.copy(coordText(lon, lat)); toast(t('ft.copied')); }
       if (a === 'directions') Native.openExternal('geo:' + lat.toFixed(6) + ',' + lon.toFixed(6) + '?q=' + lat.toFixed(6) + ',' + lon.toFixed(6) + '(' + encodeURIComponent(name || 'Bristlecone') + ')');
       if (a === 'conditions') renderConditions({ lon, lat, label: name });
@@ -571,7 +547,8 @@
         [t('ft.access'), p.access], [t('ft.length'), fmtLen(lineLength(full.geometry.coordinates))], [t('ft.width'), p.width],
         [t('ft.surveyed'), p.surveyed], [t('ft.source'), 'OpenStreetMap']
       ]);
-      html += coordBlock(lon, lat) + actions(['conditions', 'pin', 'share']);
+      html += '<div id="td-peek"></div>';
+      html += coordBlock(lon, lat) + actions(['details', 'conditions', 'pin', 'share']);
     } else if (L === 'fire-fill') {
       html = '<div class="kind-tag">' + esc(t('src.fire')) + '</div>' + head(t('fire.title', { name: p.name }), p.date ? esc(ageText(p.date)) : '');
       html += '<p class="read">' + esc(t('fire.body', { acres: p.acres != null ? Number(p.acres).toLocaleString(I18N.dateLocale()) : '?', contained: p.pct != null && p.pct !== 'null' ? t('fire.contained', { p: p.pct }) : '' })) + '</p>';
@@ -589,6 +566,12 @@
     bindActions(body, lon, lat, name);
     $$('[data-ext]', body).forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); Native.openExternal(a.dataset.ext); }));
     if (L === 'trailheads' && !p.addr) lookupAddress(lon, lat, body);
+    if (L === 'trailheads' && window.BcTrail) BcTrail.enrichTrailhead(body, lon, lat, p);
+    if (L.startsWith('trail-') && window.BcTrail) {
+      const full = data.trails.features.find(x => x.properties.id === p.id) || f;
+      BcTrail.peek(body, full);
+      const d = $('[data-act="details"]', body); if (d) d.onclick = () => BcTrail.open(full);
+    }
   }
 
   async function lookupAddress(lon, lat, body) {
@@ -608,7 +591,7 @@
 
   // ------------------------------------------------------------------ Layers sheet
   function renderLayers() {
-    const bases = ['bristlecone', 'usgsTopo', 'usgsImagery', 'openTopo', 'canada'];
+    const bases = ['bristlecone', 'satellite', 'usgsTopo', 'openTopo', 'canada'];
     const sw = (c, line) => '<span class="swatch' + (line ? ' line' : '') + '" style="background:' + c + '"></span>';
     let html = head(t('layers.title'), esc(t('layers.zoomHint')));
     html += '<h3 class="section">' + esc(t('layers.base')) + '</h3><div class="basegrid">' + bases.map(b => '<button data-base="' + b + '" class="' + (S.base === b ? 'on' : '') + '"><div class="b-name">' + esc(t('base.' + b)) + '</div><div class="b-desc">' + esc(t('base.' + b + '.d')) + '</div></button>').join('') + '</div>';
@@ -649,7 +632,7 @@
   async function placeContext(lon, lat) {
     const key = (Math.round(lat * 10) / 10) + ',' + (Math.round(lon * 10) / 10) + ',' + S.lang;
     if (App.state.placeCache[key]) return App.state.placeCache[key];
-    let ctx = { country: lat > 49.2 && lon > -141 ? 'ca' : 'us' };
+    let ctx = { country: BcData.countryOf(lon, lat) };
     try {
       const r = await BcData.reverse(lon, lat, S.lang, 10);
       const a = (r && r.address) || {};
@@ -657,7 +640,8 @@
       ctx = {
         country: a.country_code || ctx.country,
         stateCode: iso.split('-')[1] || null,
-        label: a.city || a.town || a.village || a.hamlet || a.county || a.state_district || a.state || null
+        label: a.city || a.town || a.village || a.hamlet || a.county || a.state_district || a.state || null,
+        stateName: a.state || a.province || null
       };
     } catch (e) { /* offline: fall back to a rough country guess */ }
     App.state.placeCache[key] = ctx;
@@ -677,7 +661,7 @@
     if (ctx.label && !(target && target.label)) $('.sheet-head .sub', body).textContent = t('cond.near', { place: ctx.label }) + ' · ' + t('cond.newestFirst');
     setBusy(1);
     let res;
-    try { res = await BcReports.gather({ lon: c.lon, lat: c.lat, country: ctx.country, stateCode: ctx.stateCode, lang: S.lang, npsKey: S.npsKey }); }
+    try { res = await BcReports.gather({ lon: c.lon, lat: c.lat, country: ctx.country, stateCode: ctx.stateCode, stateName: ctx.stateName, label: ctx.label, target: target && target.label, lang: S.lang, npsKey: S.npsKey, social: S.social }); }
     finally { setBusy(-1); }
     if (seq !== condSeq || !$('#cond-list')) return;
     const list = $('#cond-list');
@@ -697,15 +681,21 @@
         '<h4>' + esc(it.title || '') + '</h4>' + (it.sub ? '<div class="r-sub">' + esc(it.sub) + '</div>' : '') +
         (it.until ? '<div class="r-sub">' + esc(t('cond.until', { t: fmtTime(it.until) })) + '</div>' : '') +
         (it.body ? '<div class="r-body">' + esc(it.body) + '</div>' : '') +
-        '<div class="r-actions">' + (it.body && it.body.length > 140 ? '<button data-more>' + esc(t('cond.read')) + '</button>' : '') + (safeHost(it.url) ? '<a href="#" data-ext="' + esc(it.url) + '">' + esc(safeHost(it.url)) + '</a>' : '') + '</div></article>';
+        '<div class="r-actions">' + (it.body && it.body.length > 140 ? '<button data-more>' + esc(t('cond.read')) + '</button>' : '') + (safeHost(it.url) ? '<a href="#" data-ext="' + esc(it.url) + '">' + esc(safeHost(it.url)) + '</a>' : '') +
+        (it.src === 'social' ? '<button data-fb="1">' + esc(t('soc.useful')) + '</button><button data-fb="0">' + esc(t('soc.notReport')) + '</button>' : '') + '</div></article>';
     });
     out += '<h3 class="section">' + esc(t('cond.sources')) + '</h3><div class="src-list">' + BcReports.SOURCES.map(id => {
       const s = res.status[id] || {};
-      const st = s.na ? t('cond.sourceNa') : s.fail ? t('cond.sourceFail') : t('cond.sourceOk', { n: s.n || 0 });
+      const st = s.na ? (id === 'social' ? t('soc.off') : t('cond.sourceNa')) : s.fail ? t('cond.sourceFail') : t('cond.sourceOk', { n: s.n || 0 });
       return '<div><b>' + esc(t('src.' + id)) + '</b> · ' + esc(st) + '</div>';
     }).join('') + '</div>';
     list.innerHTML = out;
     $$('[data-more]', list).forEach(b => b.addEventListener('click', () => { b.closest('.rep').classList.add('open'); b.remove(); }));
+    $$('[data-fb]', list).forEach(b => b.addEventListener('click', () => {
+      const card = b.closest('.rep'), it = res.items[+card.dataset.i], y = +b.dataset.fb;
+      BcReportFilter.learn(it.body, y);
+      if (!y) card.remove(); else { $$('[data-fb]', card).forEach(x => x.remove()); toast(t('soc.thanks')); }
+    }));
     $$('[data-ext]', list).forEach(a => a.addEventListener('click', e => { e.preventDefault(); Native.openExternal(a.dataset.ext); }));
     $('#c-refresh', list).onclick = () => renderConditions(target);
     $('#c-add', list).onclick = () => openPlaceEditor({ lon: c.lon, lat: c.lat, type: 'report' });
@@ -733,7 +723,7 @@
       if (ctx.label && inp && inp.isConnected && !inp.dataset.touched) { App.state.lastPlaceLabel = ctx.label; inp.value = t('off.defaultName', { place: ctx.label }); }
     });
     $('#o-name', body).addEventListener('input', e => { e.target.dataset.touched = '1'; });
-    const opts = { detail: 'standard', includeBase: false, base: S.base };
+    const opts = { detail: 'standard', includeBase: false, base: effectiveBase() };
     const est = () => {
       const bbox = viewBbox();
       const e = BcOffline.estimateOnly(bbox, opts);
@@ -835,6 +825,7 @@
     html += '<div class="btns" style="margin-top:0"><button class="btn small primary" id="p-center">' + ICON.pin + esc(t('pl.saveCenter')) + '</button>' +
       (App.state.me && App.state.me.lat != null ? '<button class="btn small" id="p-here">' + ICON.pin + esc(t('pl.saveHere')) + '</button>' : '') +
       '<button class="btn small" id="p-report">' + esc(t('cond.addReport')) + '</button></div>';
+    html += '<div id="hikes"></div>';
     if (!list.length) html += '<div class="empty-state"><img src="img/mark.svg" alt=""><p>' + esc(t('pl.none')) + '</p></div>';
     list.forEach(p => {
       html += '<div class="card" data-pid="' + esc(p.id) + '"><div class="kind-tag">' + esc(p.type === 'report' ? t('pl.report') + ' · ' + t('rep.' + (p.cat || 'other')) : t('pl.pin')) + '</div>' +
@@ -844,6 +835,7 @@
         '<div class="btns"><button class="btn small" data-pshow>' + esc(t('pl.show')) + '</button><button class="btn small" data-pedit>' + esc(t('pl.edit')) + '</button><button class="btn small" data-pshare>' + ICON.share + esc(t('pl.share')) + '</button></div></div>';
     });
     const body = openSheet(html);
+    if (window.BcRecord && BcRecord.renderHikes($('#hikes', body)) && !list.length) { const es = $('.empty-state', body); if (es) es.remove(); }
     const c = map.getCenter();
     $('#p-center', body).onclick = () => openPlaceEditor({ lon: c.lng, lat: c.lat });
     const here = $('#p-here', body); if (here) here.onclick = () => openPlaceEditor({ lon: App.state.me.lon, lat: App.state.me.lat });
@@ -898,6 +890,13 @@
       toggleRow('bkmaps', t('backup.includeMaps'), '', false) +
       '<div class="btns"><button class="btn primary" id="s-backup">' + ICON.drive + esc(t('backup.drive')) + '</button><button class="btn" id="s-restore">' + esc(t('backup.restore')) + '</button></div></div>';
     html += '<h3 class="section">' + esc(t('about.estimates')) + '</h3><p class="read">' + esc(t('about.estimatesBody')) + '</p><p class="small muted">' + esc(inf.strideSamples > 0 ? t('loc.stride', { n: inf.strideSamples }) : t('loc.strideNew')) + '</p><button class="btn small" id="s-stride">' + esc(t('set.strideReset')) + '</button>';
+    const soc = S.social || { enabled: true, instances: BcReports.DEFAULT_INSTANCES.map(x => Object.assign({}, x)) };
+    html += '<h3 class="section">' + esc(t('soc.title')) + '</h3><div class="card"><p class="read" style="margin:0 0 6px">' + esc(t('soc.intro')) + '</p>' +
+      toggleRow('soc-on', t('soc.enable'), '', soc.enabled !== false) +
+      soc.instances.map((ins, i) => toggleRow('soc-i-' + i, ins.host, '', ins.on)).join('') +
+      '<div class="row" style="margin-top:8px"><input class="text grow" id="soc-add" placeholder="example.social" autocomplete="off" autocapitalize="off"><button class="btn small" id="soc-add-btn">' + esc(t('soc.add')) + '</button></div>' +
+      '<p class="small muted">' + esc(t('soc.learned', { n: BcReportFilter.feedbackCount ? BcReportFilter.feedbackCount() : 0 })) + '</p>' +
+      '<button class="btn small" id="soc-reset">' + esc(t('soc.reset')) + '</button></div>';
     html += '<h3 class="section">' + esc(t('set.npsKey')) + '</h3><input class="text" id="s-nps" value="' + esc(S.npsKey) + '" placeholder="DEMO_KEY" autocomplete="off"><p class="small muted">' + esc(t('set.npsKeyNote')) + '</p>';
     html += '<h3 class="section">' + esc(t('about.title')) + '</h3><p class="read">' + esc(t('about.story')) + '</p><p class="small muted">' + esc(t('about.privacy')) + '</p>';
     html += '<h3 class="section">' + esc(t('about.credits')) + '</h3><div class="credits">' + CREDITS.map(([n, u, d]) => '<div><a href="#" data-ext="' + esc(u) + '">' + esc(n) + '</a> · ' + esc(d) + '</div>').join('') + '</div>';
@@ -915,6 +914,15 @@
     $('#s-restore', body).onclick = () => Native.restore();
     $('#s-stride', body).onclick = () => { Native.resetStride(); toast(t('off.saved')); };
     $('#s-nps', body).onchange = (e) => { S.npsKey = e.target.value.trim(); saveSettings(); };
+    const saveSoc = () => { S.social = soc; saveSettings(); };
+    $('[data-toggle="soc-on"]', body).onchange = (e) => { soc.enabled = e.target.checked; saveSoc(); };
+    soc.instances.forEach((ins, i) => { $('[data-toggle="soc-i-' + i + '"]', body).onchange = (e) => { ins.on = e.target.checked; saveSoc(); }; });
+    $('#soc-add-btn', body).onclick = () => {
+      const h = $('#soc-add', body).value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) || soc.instances.some(x => x.host === h)) return;
+      soc.instances.push({ host: h, on: true }); saveSoc(); renderSettings();
+    };
+    $('#soc-reset', body).onclick = () => { BcReportFilter.reset(); toast(t('off.saved')); renderSettings(); };
     $$('[data-ext]', body).forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); Native.openExternal(a.dataset.ext); }));
   }
   const CREDITS = [
@@ -929,6 +937,11 @@
     ['Natural Resources Canada', 'https://natural-resources.canada.ca', 'Canada Base Map, Aboriginal lands and national park boundaries (Open Government Licence Canada)'],
     ['ECCC CPCAD', 'https://www.canada.ca/en/environment-climate-change/services/national-wildlife-areas/protected-conserved-areas-database.html', 'Canadian protected and conserved areas'],
     ['OpenTopoMap', 'https://opentopomap.org', 'topographic base map (CC-BY-SA)'],
+    ['USGS NAIP imagery', 'https://www.usgs.gov/centers/eros/science/usgs-eros-archive-aerial-photography-national-agriculture-imagery-program-naip', 'US satellite and aerial view (public domain)'],
+    ['Sentinel-2 cloudless by EOX', 'https://s2maps.eu', 'satellite view outside the US (contains modified Copernicus Sentinel data 2016, CC BY-SA 4.0)'],
+    ['Wikipedia and Wikidata', 'https://www.wikipedia.org', 'trail descriptions (CC BY-SA)'],
+    ['Wikimedia Commons', 'https://commons.wikimedia.org', 'trail photos, each credited to its photographer'],
+    ['Mastodon-compatible servers', 'https://joinmastodon.org', 'public trail reports, filtered on the phone'],
     ['National Weather Service', 'https://www.weather.gov', 'US alerts'],
     ['Environment and Climate Change Canada', 'https://weather.gc.ca', 'Canadian alerts'],
     ['National Park Service', 'https://www.nps.gov/subjects/developer/', 'park alerts and closures'],
@@ -939,7 +952,7 @@
     ['Nominatim', 'https://nominatim.org', 'search and addresses'],
     ['MapLibre GL JS', 'https://maplibre.org', 'map engine (BSD-3-Clause)'],
     ['maplibre-contour', 'https://github.com/onthegomap/maplibre-contour', 'contour lines (BSD-3-Clause)'],
-    ['Inter and Cormorant Garamond', 'https://fonts.google.com', 'typefaces (SIL Open Font License)']
+    ['Overpass and Cormorant Garamond', 'https://overpassfont.org', 'typefaces (SIL Open Font License)']
   ];
 
   // ------------------------------------------------------------------ Search
@@ -962,31 +975,52 @@
     const res = $('#search-results');
     const seq = ++searchSeq;
     res.classList.remove('hidden');
-    if (!Native.online()) { res.innerHTML = '<div class="empty">' + esc(t('search.offline')) + '</div>'; return; }
-    res.innerHTML = '<div class="empty">' + esc(t('search.searching')) + '</div>';
+    // Hiking regions are matched on the phone, so they work offline too.
+    const regions = window.BcRegions ? BcRegions.match(q, S.lang) : [];
+    const regionHtml = regions.map((r, i) => '<button data-region="' + i + '" class="sr-region"><div class="r-name">' + esc(r.name) + '</div><div class="r-sub">' + esc(t('reg.trailsIn')) + '</div></button>').join('');
+    const bindRegions = () => $$('[data-region]', res).forEach(b => b.onclick = () => { res.classList.add('hidden'); $('#search').blur(); setFollow(false); BcRegions.show(regions[+b.dataset.region]); });
+    if (!Native.online()) { res.innerHTML = regionHtml + '<div class="empty">' + esc(t('search.offline')) + '</div>'; bindRegions(); return; }
+    res.innerHTML = regionHtml + '<div class="empty">' + esc(t('search.searching')) + '</div>';
+    bindRegions();
     try {
       const c = map.getCenter();
-      const list = await BcData.search(q, S.lang, [c.lng, c.lat]);
+      const list = await BcData.search(q.replace(/^(trails?|hikes?|senderos?|sentiers?)\s+(in|near|en|dans|de|du|des)\s+/i, ''), S.lang, [c.lng, c.lat]);
       if (seq !== searchSeq) return;
-      if (!list.length) { res.innerHTML = '<div class="empty">' + esc(t('search.none')) + '</div>'; return; }
-      res.innerHTML = list.map((r, i) => {
+      if (!list.length && !regions.length) { res.innerHTML = '<div class="empty">' + esc(t('search.none')) + '</div>'; return; }
+      const isTrail = (r) => r.category === 'highway' && /path|footway|track|bridleway/.test(r.type) || r.category === 'route' || r.type === 'hiking';
+      const isArea = (r) => {
+        const bb = r.boundingbox && r.boundingbox.map(Number);
+        if (!bb) return false;
+        const area = (bb[1] - bb[0]) * (bb[3] - bb[2]);
+        return area > 0.01 && area < 60 && /boundary|leisure|place/.test(r.category || r.class || '') && /administrative|national_park|protected_area|nature_reserve|park|state|province|county|region/.test(r.type || r.addresstype || '');
+      };
+      res.innerHTML = regionHtml + list.map((r, i) => {
         const parts = (r.display_name || '').split(', ');
-        return '<button data-i="' + i + '"><div class="r-name">' + esc(r.name || parts[0]) + '</div><div class="r-sub">' + esc(parts.slice(1, 4).join(', ')) + '</div></button>';
+        return '<button data-i="' + i + '"><div class="r-name">' + (isTrail(r) ? '<span class="tag-trail">' + esc(t('reg.trail')) + '</span> ' : '') + esc(r.name || parts[0]) + '</div><div class="r-sub">' + esc(parts.slice(1, 4).join(', ')) + '</div></button>' +
+          (isArea(r) ? '<button data-area="' + i + '" class="sr-region"><div class="r-sub">' + esc(t('reg.trailsIn')) + ': ' + esc(r.name || parts[0]) + '</div></button>' : '');
       }).join('');
-      $$('button', res).forEach(b => b.onclick = () => {
+      bindRegions();
+      $$('[data-area]', res).forEach(b => b.onclick = () => {
+        const r = list[+b.dataset.area], bb = r.boundingbox.map(Number);
+        res.classList.add('hidden'); $('#search').blur(); setFollow(false);
+        BcRegions.show({ name: r.name || (r.display_name || '').split(', ')[0], boxes: [[bb[2], bb[0], bb[3], bb[1]]] });
+      });
+      $$('[data-i]', res).forEach(b => b.onclick = () => {
         const r = list[+b.dataset.i];
         res.classList.add('hidden'); $('#search').blur();
         setFollow(false);
+        const lon = +r.lon, lat = +r.lat;
+        const name = r.name || (r.display_name || '').split(', ')[0];
+        App.state.lastPlaceLabel = name;
+        if (isTrail(r) && window.BcRegions) { BcRegions.goToTrail({ name, center: [lon, lat] }); return; }
         const bb = r.boundingbox && r.boundingbox.map(Number);
         if (bb && (bb[1] - bb[0]) > 0.01) map.fitBounds([[bb[2], bb[0]], [bb[3], bb[1]]], { padding: 40, maxZoom: 15 });
-        else map.flyTo({ center: [+r.lon, +r.lat], zoom: 14 });
-        App.state.lastPlaceLabel = r.name || (r.display_name || '').split(', ')[0];
-        const lon = +r.lon, lat = +r.lat;
-        const body = openSheet('<div class="kind-tag">' + esc(t('kind.place')) + '</div>' + head(r.name || (r.display_name || '').split(', ')[0], esc((r.display_name || '').split(', ').slice(1, 4).join(', '))) + coordBlock(lon, lat) + actions(['conditions', 'directions', 'pin', 'share']), { peek: true });
+        else map.flyTo({ center: [lon, lat], zoom: 14 });
+        const body = openSheet('<div class="kind-tag">' + esc(t('kind.place')) + '</div>' + head(name, esc((r.display_name || '').split(', ').slice(1, 4).join(', '))) + coordBlock(lon, lat) + actions(['conditions', 'directions', 'pin', 'share']), { peek: true });
         bindActions(body, lon, lat, r.name);
       });
     } catch (e) {
-      if (seq === searchSeq) res.innerHTML = '<div class="empty">' + esc(t('search.offline')) + '</div>';
+      if (seq === searchSeq) { res.innerHTML = regionHtml + '<div class="empty">' + esc(t('search.offline')) + '</div>'; bindRegions(); }
     }
   }
 
@@ -1011,7 +1045,11 @@
       else if (r.kind === 'restore') { toast(t('restore.done', { n: r.count })); setTimeout(() => location.reload(), 1200); }
       else toast(t('off.saved'));
     },
-    onResume: () => { applyTheme(); refreshDataSoon(); }
+    onResume: () => { applyTheme(); refreshDataSoon(); if (window.BcRecord) BcRecord.poll(); },
+    onRecording: (s) => window.BcRecord && BcRecord.onRecording(JSON.parse(s)),
+    onHealthPermission: (s) => window.BcRecord && BcRecord.onHealthPermission(JSON.parse(s)),
+    onHealthResult: (s) => window.BcRecord && BcRecord.onHealthResult(JSON.parse(s)),
+    onOpenedFor: (s) => { const o = JSON.parse(s); if (o.what === 'health-privacy' && window.BcRecord) BcRecord.healthPrivacy(); }
   };
   window.bc = {
     back() {
@@ -1019,6 +1057,13 @@
       if (!$('#sheet').classList.contains('hidden')) { closeSheet(); return true; }
       return false;
     }
+  };
+
+  // ------------------------------------------------------------------ Shared helpers for feature modules
+  App.ui = {
+    t, esc, $, $$, ICON, openSheet, closeSheet, head, toast, toggleRow, seg, bindSeg, setBusy, fmtLen, fmtEle, fmtBytes, fmtTime, ageText,
+    coordText, dms, kvRows, coordBlock, actions, bindActions, highlight, lineLength, data, setData, renderConditions, openPlaceEditor, placeContext,
+    textLocation, setTab, get map() { return map; }, get imperial() { return imperial(); }, settings: S, saveSettings, applyStyle
   };
 
   // ------------------------------------------------------------------ Boot
@@ -1049,6 +1094,7 @@
       if (on !== wasOnline) { wasOnline = on; toast(t(on ? 'toast.online' : 'toast.offline')); if (on) refreshData(); }
     }, 8000);
     setTimeout(splashDone, 6000);
+    if (info.openedFor === 'health-privacy') setTimeout(() => window.BcRecord && BcRecord.healthPrivacy(), 1800);
   }
   function persistPlacesData() {
     data.mine = { type: 'FeatureCollection', features: App.state.places.map(p => ({ type: 'Feature', properties: { id: p.id, type: p.type, name: p.name || '' }, geometry: { type: 'Point', coordinates: [p.lon, p.lat] } })) };

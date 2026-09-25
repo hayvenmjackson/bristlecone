@@ -23,7 +23,8 @@ public final class CachePolicy {
         if (host.equals("api.weather.gov") || host.equals("api.weather.gc.ca")
                 || host.equals("developer.nps.gov") && u.contains("/alerts")
                 || host.equals("api.avalanche.org") || host.equals("api.avalanche.ca")
-                || host.equals("api.openstreetmap.org") || u.contains("wfigs")) {
+                || host.equals("api.openstreetmap.org") || u.contains("wfigs")
+                || u.contains("/api/v1/timelines/tag/")) {
             return Kind.LIVE;
         }
         if (host.equals("tiles.openfreemap.org") || host.contains("elevation-tiles-prod")

@@ -4,7 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SDK=${ANDROID_JAR:-/usr/lib/android-sdk/platforms/android-23/android.jar}
+# Resources and Java are both built against the API 34 platform, so Health Connect and
+# foreground-service APIs and manifest attributes are available.
+# Put android-34.jar in .sdk/ (copy platforms/android-34/android.jar from an Android SDK install).
+SDK=${ANDROID_JAR:-.sdk/android-34.jar}
+SDK_JAVA=${ANDROID_JAR_34:-$SDK}
 BT=${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}
 OUT=build/apk
 SRC=app/src/main
@@ -16,11 +20,11 @@ sed 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<ma
   "$SRC/AndroidManifest.xml" > "$OUT/AndroidManifest.xml"
 aapt package -f -m -J "$OUT/gen" -M "$OUT/AndroidManifest.xml" -S "$SRC/res" -I "$SDK" \
   -A "$SRC/assets" -F "$OUT/unsigned.apk" --min-sdk-version 26 --target-sdk-version 34 \
-  --version-code 2 --version-name 1.0.1 -0 woff2 -0 pbf
+  --version-code 3 --version-name 1.1.0 -0 woff2 -0 pbf
 
 echo "== java"
 find "$SRC/java" "$OUT/gen" -name '*.java' > "$OUT/sources.txt"
-javac -nowarn -Xlint:-options --release 8 -cp "$SDK" -d "$OUT/obj" @"$OUT/sources.txt"
+javac -nowarn -Xlint:-options --release 8 -cp "$SDK_JAVA" -d "$OUT/obj" @"$OUT/sources.txt"
 
 echo "== dex"
 "$BT/dx" --dex --min-sdk-version=26 --output="$OUT/dex/classes.dex" "$OUT/obj"
