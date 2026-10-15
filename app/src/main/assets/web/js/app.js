@@ -670,7 +670,9 @@
   async function renderConditions(target) {
     setTab('conditions', true);
     const seq = ++condSeq;
-    const c = target || (App.state.me && App.state.me.lat != null && !App.state.conditionsUseCenter ? { lon: App.state.me.lon, lat: App.state.me.lat } : { lon: map.getCenter().lng, lat: map.getCenter().lat });
+    const exact = target || (App.state.me && App.state.me.lat != null && !App.state.conditionsUseCenter ? { lon: App.state.me.lon, lat: App.state.me.lat } : { lon: map.getCenter().lng, lat: map.getCenter().lat });
+    // Weather, avalanche and report services only get a position rounded to about 1 km.
+    const c = { lon: Math.round(exact.lon * 100) / 100, lat: Math.round(exact.lat * 100) / 100 };
     const html = head(t('cond.title'), esc(t('cond.near', { place: target && target.label ? target.label : t('cond.mapCenter') })) + ' · ' + esc(t('cond.newestFirst'))) +
       '<div id="cond-list"><p class="read muted">' + esc(t('cond.loading')) + '</p></div>';
     const body = openSheet(html);

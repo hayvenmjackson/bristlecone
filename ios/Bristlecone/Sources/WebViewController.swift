@@ -31,12 +31,14 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Bristlecone", isDirectory: true)
         try? fm.createDirectory(at: base, withIntermediateDirectories: true)
-        let n = NetCache(root: base)
-        // Map tiles can be re-downloaded, so they stay out of iCloud device backups.
-        var cacheDir = n.dir
+        // Hikes, places, settings and map tiles all stay out of iCloud device backups.
+        // The in-app backup (a .zip the user saves wherever they choose) is the only way
+        // data leaves the device.
+        var baseDir = base
         var rv = URLResourceValues()
         rv.isExcludedFromBackup = true
-        try? cacheDir.setResourceValues(rv)
+        try? baseDir.setResourceValues(rv)
+        let n = NetCache(root: base)
         let t = TrackStore(root: base)
         root = base
         net = n
