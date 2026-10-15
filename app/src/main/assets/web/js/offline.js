@@ -79,16 +79,26 @@
   }
 
   /** A recorded hike as GPX 1.1 with timestamps and elevation, for Strava, Garmin Connect, CalTopo and others. */
-  function toGpxTrack(name, pts) {
-    const esc = (x) => String(x || '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+  // GPX <type> values that Strava, Garmin Connect and others recognise.
+  const GPX_TYPES = { hike: 'hiking', walk: 'walking', run: 'running', snowshoe: 'snowshoeing', mtb: 'mountain_biking', bike: 'cycling',
+    horse: 'horseback_riding', xcski: 'cross_country_skiing', ski: 'backcountry_skiing', paddle: 'paddling', ohv: 'motorized' };
+  const gpxEsc = (x) => String(x || '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+
+  /** One GPX file holding one or more tracks: [{ name, activity, notes, pts }]. */
+  function toGpxTracks(title, tracks) {
+    const first = tracks.find(x => x.pts.length);
     const out = ['<?xml version="1.0" encoding="UTF-8"?>',
       '<gpx version="1.1" creator="Bristlecone" xmlns="http://www.topografix.com/GPX/1/1">',
-      '<metadata><name>' + esc(name) + '</name>' + (pts.length ? '<time>' + new Date(pts[0][2]).toISOString() + '</time>' : '') + '</metadata>',
-      '<trk><name>' + esc(name) + '</name><type>hiking</type><trkseg>'];
-    pts.forEach(p => out.push('<trkpt lat="' + p[1] + '" lon="' + p[0] + '">' + (p[3] != null ? '<ele>' + Number(p[3]).toFixed(1) + '</ele>' : '') + (p[2] ? '<time>' + new Date(p[2]).toISOString() + '</time>' : '') + '</trkpt>'));
-    out.push('</trkseg></trk></gpx>');
+      '<metadata><name>' + gpxEsc(title) + '</name>' + (first ? '<time>' + new Date(first.pts[0][2]).toISOString() + '</time>' : '') + '</metadata>'];
+    tracks.forEach(tr => {
+      out.push('<trk><name>' + gpxEsc(tr.name) + '</name>' + (tr.notes ? '<desc>' + gpxEsc(tr.notes) + '</desc>' : '') + '<type>' + (GPX_TYPES[tr.activity] || 'hiking') + '</type><trkseg>');
+      tr.pts.forEach(p => out.push('<trkpt lat="' + p[1] + '" lon="' + p[0] + '">' + (p[3] != null ? '<ele>' + Number(p[3]).toFixed(1) + '</ele>' : '') + (p[2] ? '<time>' + new Date(p[2]).toISOString() + '</time>' : '') + '</trkpt>'));
+      out.push('</trkseg></trk>');
+    });
+    out.push('</gpx>');
     return out.join('\n');
   }
+  function toGpxTrack(name, pts, activity, notes) { return toGpxTracks(name, [{ name, pts, activity, notes }]); }
 
   function b64(str) {
     const bytes = new TextEncoder().encode(str);
@@ -127,5 +137,5 @@
     });
   }
 
-  window.BcOffline = { plan, estimateOnly, toGpx, toGpxTrack, b64, mapImage, MAX_TILES };
+  window.BcOffline = { plan, estimateOnly, toGpx, toGpxTrack, toGpxTracks, b64, mapImage, MAX_TILES };
 })();

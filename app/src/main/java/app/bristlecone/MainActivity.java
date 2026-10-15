@@ -2,6 +2,10 @@ package app.bristlecone;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.KeyguardManager;
+import android.hardware.biometrics.BiometricManager;
+import android.hardware.biometrics.BiometricPrompt;
+import android.os.CancellationSignal;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -36,6 +40,7 @@ public class MainActivity extends Activity {
     static final int REQ_EXPORT = 13;
     static final int REQ_HEALTH = 21;
     static final int REQ_RECORD = 22;
+    static final int REQ_UNLOCK = 23;
 
     WebView web;
     NetCache net;
@@ -238,8 +243,35 @@ public class MainActivity extends Activity {
         startActivityForResult(i, REQ_EXPORT);
     }
 
+    // ---------------------------------------------------------------- App lock
+
+    /** The lock is only offered when the phone itself has a PIN, pattern, password or biometric. */
+    boolean canLock() {
+        KeyguardManager km = getSystemService(KeyguardManager.class);
+        return km != null && km.isDeviceSecure();
+    }
+
+    void authenticate(String title, String subtitle) {
+        if (!canLock()) { authResult(true); return; }
+        if (Build.VERSION.SDK_INT >= 30) {
+            BiometricPrompt p = new BiometricPrompt.Builder(this).setTitle(title).setSubtitle(subtitle)
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .build();
+            p.authenticate(new CancellationSignal(), getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult r) { authResult(true); }
+                @Override public void onAuthenticationError(int code, CharSequence msg) { authResult(false); }
+            });
+        } else {
+            Intent i = getSystemService(KeyguardManager.class).createConfirmDeviceCredentialIntent(title, subtitle);
+            if (i == null) authResult(true); else startActivityForResult(i, REQ_UNLOCK);
+        }
+    }
+
+    private void authResult(boolean ok) { callJs("bcNative.onAuth", "{\"ok\":" + ok + "}"); }
+
     @Override protected void onActivityResult(final int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_UNLOCK) { authResult(resultCode == RESULT_OK); return; }
         final Uri uri = (resultCode == RESULT_OK && data != null) ? data.getData() : null;
         final String kind = requestCode == REQ_BACKUP ? "backup" : requestCode == REQ_RESTORE ? "restore" : "export";
         if (uri == null) { fileResult(kind, false, 0, "cancelled"); return; }

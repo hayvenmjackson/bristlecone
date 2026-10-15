@@ -30,6 +30,7 @@ public final class Bridge {
             o.put("locale", l.getLanguage() + "-" + l.getCountry());
             o.put("version", "1.2.0");
             o.put("health", HealthSync.available(a));
+            o.put("lock", a.canLock());
             o.put("healthGranted", HealthSync.granted(a));
             o.put("openedFor", a.openedFor == null ? JSONObject.NULL : a.openedFor);
             o.put("sdk", Build.VERSION.SDK_INT);
@@ -43,6 +44,11 @@ public final class Bridge {
         } catch (Exception e) {
             return "{}";
         }
+    }
+
+    /** Asks for the fingerprint, face or screen lock; the answer arrives as bcNative.onAuth. */
+    @JavascriptInterface public void authenticate(final String title, final String subtitle) {
+        a.runOnUiThread(new Runnable() { @Override public void run() { a.authenticate(title, subtitle); } });
     }
 
     @JavascriptInterface public boolean online() { return a.net.isOnline(); }

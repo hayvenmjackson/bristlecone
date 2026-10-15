@@ -138,10 +138,33 @@
       fn(b.dataset.v);
     });
   }
+  // ------------------------------------------------------------------ App lock
+  // Optional: activities and saved places ask for the phone's fingerprint, face or screen lock.
+  // Unlocking lasts until the app goes to the background, or ten minutes at most.
+  let unlockedUntil = 0, authWait = null, authResolve = null;
+  const lockAvailable = () => !!(Native.info() || {}).lock;
+  const lockOn = () => !!S.lock && lockAvailable();
+  const isUnlocked = () => !lockOn() || Date.now() < unlockedUntil;
+  function unlock() {
+    if (isUnlocked()) return Promise.resolve(true);
+    if (!authWait) authWait = new Promise(res => { authResolve = res; Native.authenticate(t('lock.title'), t('lock.reason')); });
+    return authWait;
+  }
+  function onAuth(ok) {
+    if (ok) unlockedUntil = Date.now() + 10 * 60000;
+    const r = authResolve; authResolve = null; authWait = null;
+    if (r) r(!!ok);
+    if (!ok) toast(t('lock.failed'));
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) unlockedUntil = 0; });
+  /** Runs fn once the person has unlocked (straight away when the lock is off). */
+  function whenUnlocked(fn) { if (isUnlocked()) return fn(); unlock().then(ok => { if (ok) fn(); }); }
+
   function setTab(tab, silent) {
     currentTab = tab;
     $$('.bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     if (silent) return;
+    if (window.BcRecord) BcRecord.endReplay();
     if (tab === 'map') closeSheet();
     else if (tab === 'conditions') renderConditions();
     else if (tab === 'offline') renderOffline();
@@ -839,6 +862,7 @@
     setData('mine');
   }
   function renderPlaces() {
+    if (!isUnlocked()) { unlock().then(ok => ok ? renderPlaces() : setTab('map', true)); return; }
     setTab('places', true);
     const list = App.state.places.slice().sort((a, b) => b.time - a.time);
     let html = head(t('pl.title'));
@@ -906,6 +930,10 @@
     html += '<p class="small muted">' + esc(t('appear.auto.d')) + ' ' + esc(t('appear.now', { mode: t(App.state.dark ? 'appear.dark' : 'appear.light'), sunset: fmtClock(sun.sunset) || '·', sunrise: fmtClock(sun.sunrise) || '·' })) + '</p>';
     html += '<h3 class="section">' + esc(t('set.units')) + '</h3>' + seg('units', [['imperial', t('units.imperial')], ['metric', t('units.metric')]], S.units);
     html += '<div style="margin-top:10px">' + toggleRow('keepAwake', t('set.keepAwake'), '', S.keepAwake) + '</div>';
+    const trim = S.shareTrim == null ? 200 : S.shareTrim;
+    html += '<h3 class="section">' + esc(t('set.privacy')) + '</h3><div class="card"><div class="t-label">' + esc(t('trim.title')) + '</div><p class="small muted" style="margin:4px 0 8px">' + esc(t('trim.desc')) + '</p>' +
+      seg('trim', [['0', t('trim.off')], ['200', fmtLen(200)], ['500', fmtLen(500)], ['1000', fmtLen(1000)]], String(trim)) +
+      (lockAvailable() ? '<div style="margin-top:10px">' + toggleRow('lock', t('lock.setting'), t('lock.desc'), !!S.lock) + '</div>' : '') + '</div>';
     html += '<h3 class="section">' + esc(t('set.backup')) + '</h3><div class="card"><p class="read" style="margin:0 0 8px">' + esc(t('backup.driveNote')) + '</p>' +
       toggleRow('bkmaps', t('backup.includeMaps'), '', false) +
       '<div class="btns"><button class="btn primary" id="s-backup">' + ICON.drive + esc(t('backup.drive')) + '</button><button class="btn" id="s-restore">' + esc(t('backup.restore')) + '</button></div></div>';
@@ -929,6 +957,15 @@
     };
     bindSeg(body, 'appear', v => { S.appearance = v; saveSettings(); applyTheme(true); renderSettings(); });
     bindSeg(body, 'units', v => { S.units = v; saveSettings(); scaleCtl.setUnit(imperial() ? 'imperial' : 'metric'); applyStyle(); if (App.state.me) onLocation(App.state.me); });
+    bindSeg(body, 'trim', v => { S.shareTrim = Number(v); saveSettings(); });
+    const lockT = $('[data-toggle="lock"]', body);
+    // Turning the lock on or off needs an unlock, so nobody else can simply switch it off.
+    if (lockT) lockT.onchange = (e) => {
+      const want = e.target.checked;
+      e.target.checked = !want;
+      Native.authenticate(t('lock.title'), t('lock.reason'));
+      authWait = new Promise(res => { authResolve = res; }).then(ok => { if (ok) { S.lock = want; saveSettings(); e.target.checked = want; } return ok; });
+    };
     $('[data-toggle="keepAwake"]', body).onchange = (e) => { S.keepAwake = e.target.checked; saveSettings(); Native.keepScreenOn(S.keepAwake); };
     $('#s-backup', body).onclick = () => Native.isApp ? Native.backup($('[data-toggle="bkmaps"]', body).checked, 'bristlecone-backup-' + new Date().toISOString().slice(0, 10) + '.zip') : toast(t('common.needsApp'));
     $('#s-restore', body).onclick = () => Native.restore();
@@ -1069,6 +1106,7 @@
     onRecording: (s) => window.BcRecord && BcRecord.onRecording(JSON.parse(s)),
     onHealthPermission: (s) => window.BcRecord && BcRecord.onHealthPermission(JSON.parse(s)),
     onHealthResult: (s) => window.BcRecord && BcRecord.onHealthResult(JSON.parse(s)),
+    onAuth: (s) => { try { onAuth(JSON.parse(s).ok); } catch (e) { onAuth(false); } },
     onOpenedFor: (s) => { const o = JSON.parse(s); if (o.what === 'health-privacy' && window.BcRecord) BcRecord.healthPrivacy(); }
   };
   window.bc = {
@@ -1083,7 +1121,7 @@
   App.ui = {
     t, esc, $, $$, ICON, openSheet, closeSheet, head, toast, toggleRow, seg, bindSeg, setBusy, fmtLen, fmtEle, fmtBytes, fmtTime, ageText,
     coordText, dms, kvRows, coordBlock, actions, bindActions, highlight, lineLength, data, setData, renderConditions, openPlaceEditor, placeContext,
-    textLocation, setTab, get map() { return map; }, get imperial() { return imperial(); }, settings: S, saveSettings, applyStyle
+    textLocation, setTab, whenUnlocked, isUnlocked, lockAvailable, get map() { return map; }, get imperial() { return imperial(); }, settings: S, saveSettings, applyStyle
   };
 
   // ------------------------------------------------------------------ Boot

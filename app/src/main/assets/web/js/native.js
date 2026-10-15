@@ -30,7 +30,7 @@
       .forEach(m => { o[m] = (...a) => call(m, ...a); });
     // Fire-and-forget calls.
     ['requestLocation', 'stopLocation', 'resetStride', 'cancelRegion', 'deleteRegion', 'clearBrowseCache', 'backup', 'restore', 'saveFile', 'openExternal',
-      'setDark', 'keepScreenOn', 'copy', 'share', 'trackStart', 'trackPause', 'trackResume', 'trackDelete', 'sms', 'healthRequest', 'healthWrite']
+      'setDark', 'keepScreenOn', 'copy', 'share', 'authenticate', 'trackStart', 'trackPause', 'trackResume', 'trackDelete', 'sms', 'healthRequest', 'healthWrite']
       .forEach(m => { o[m] = (...a) => fire(m, ...a); });
     return o;
   }
@@ -87,6 +87,7 @@
     sms(body) { if (N) return N.sms(body); window.__lastSms = body; },
     healthRequest() { if (N) return N.healthRequest(); setTimeout(() => window.bcNative.onHealthPermission(JSON.stringify({ granted: false, unavailable: true })), 50); },
     healthWrite(id) { if (N) return N.healthWrite(id); },
+    authenticate(title, reason) { if (N) return N.authenticate(title, reason); setTimeout(() => window.bcNative.onAuth(JSON.stringify({ ok: true })), 50); },
     isApp: !!N,
     platform: window.BristleconeNative ? 'android' : IOS ? 'ios' : 'web',
     /** On iOS, remote https requests go through the app's own scheme so they are cached for offline use. */

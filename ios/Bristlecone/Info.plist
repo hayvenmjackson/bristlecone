@@ -63,6 +63,8 @@
 	<string>Bristlecone shows where you are on the trail map and records the hikes, rides and other trips you start. Your location stays on this device.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Bristlecone counts steps and reads the barometer to estimate your position when GPS drops out and to measure climb.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Bristlecone can ask for Face ID before showing your recorded activities and saved places.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Bristlecone saves the activities you choose to Apple Health: the route, distance and elevation gained.</string>
 	<key>NSHealthShareUsageDescription</key>

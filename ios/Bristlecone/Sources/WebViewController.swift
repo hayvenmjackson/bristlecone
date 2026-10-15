@@ -2,6 +2,7 @@ import UIKit
 import WebKit
 import MessageUI
 import UniformTypeIdentifiers
+import LocalAuthentication
 
 /// Hosts the shared map UI (the same web layer as the Android app) and answers its calls.
 /// The page posts {m: method, a: [args]} to the "bc" handler and gets a Promise back; events
@@ -109,6 +110,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
             "locale": Locale.preferredLanguages.first ?? "en-US",
             "version": WebViewController.version,
             "health": health.available,
+            "lock": LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil),
             "healthGranted": health.granted,
             "openedFor": NSNull(),
             "os": UIDevice.current.systemVersion,
@@ -220,6 +222,14 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
 
         // Apple Health
         case "healthRequest": requestHealth(); reply(nil)
+        case "authenticate":
+            // Face ID, Touch ID or the passcode; the answer arrives as bcNative.onAuth.
+            let ctx = LAContext()
+            if !ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) { callJs("onAuth", ["ok": true]); reply(nil); return }
+            ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: s(1).isEmpty ? s(0) : s(1)) { ok, _ in
+                DispatchQueue.main.async { self.callJs("onAuth", ["ok": ok]) }
+            }
+            reply(nil)
         case "healthWrite": healthWrite(s(0)); reply(nil)
 
         default: replyHandler(nil, "unknown call " + m)

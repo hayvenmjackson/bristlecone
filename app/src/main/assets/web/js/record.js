@@ -24,6 +24,27 @@
   const act = (id) => ACTS.find(a => a.id === id) || ACTS[0];
   const actLabel = (id) => t('act.' + act(id).id);
   function lastActivity() { try { return act(Native.kvGet('lastActivity') || 'hike').id; } catch (e) { return 'hike'; } }
+  // ------------------------------------------------------------------ Privacy when sharing
+  /** Metres left off each end of a shared route (Settings, Privacy). */
+  const trimMetres = () => (U.settings.shareTrim == null ? 200 : Number(U.settings.shareTrim) || 0);
+
+  /** The route without its first and last `m` metres, or [] when too little would be left. */
+  function trimEnds(pts, m) {
+    if (!m || pts.length < 2) return pts;
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + BcData.haversine(pts[i - 1], pts[i]));
+    const total = cum[cum.length - 1];
+    if (total < m * 2 + Math.max(100, m)) return [];
+    return pts.filter((_, i) => cum[i] >= m && cum[i] <= total - m);
+  }
+
+  /** The route as it may be shared, or null (with a note to the person) when trimming leaves nothing. */
+  function sharedPoints(pts) {
+    const out = trimEnds(pts, trimMetres());
+    if (out.length < 2) { U.toast(t('trim.tooShort'), 6000); return null; }
+    return out;
+  }
+
   function fmtSpeed(mps) {
     if (!(mps > 0)) return '';
     return U.imperial ? (mps * 2.23694).toFixed(1) + ' ' + t('unit.mph') : (mps * 3.6).toFixed(1) + ' ' + t('unit.kmh');
@@ -132,7 +153,7 @@
       meta.name = t('rec.defaultName', { activity: actLabel(meta.activity), place: place.label || t('cond.mapCenter'), date: new Date(meta.start).toLocaleDateString(I18N.dateLocale(), { month: 'short', day: 'numeric' }) });
       Native.trackUpdate(JSON.stringify({ id, name: meta.name }));
     }
-    openHike(id);
+    openHike(id, true);
   }
 
   // ------------------------------------------------------------------ A saved hike
@@ -183,7 +204,9 @@
       rows.map(r => '<tr><td>' + (r.part ? r.part.toLocaleString(I18N.dateLocale(), { maximumFractionDigits: 2 }) : r.n) + '</td><td>' + esc(fmtDur(r.ms)) + '</td><td>' + esc(fmtGain(r.climb)) + '</td></tr>').join('') + '</table>';
   }
 
-  async function openHike(id) {
+  /** fresh: just recorded, so no unlock is needed to see it. */
+  async function openHike(id, fresh) {
+    if (!fresh && !U.isUnlocked()) { U.whenUnlocked(() => openHike(id, true)); return; }
     const m = await readMeta(id);
     if (!m) return;
     const pts = await readPoints(id);
@@ -199,6 +222,8 @@
     html += '<label class="field">' + esc(t('pl.name')) + '</label><input class="text" id="h-name" value="' + esc(m.name || '') + '">';
     html += '<label class="field">' + esc(t('rec.activity')) + '</label><select class="text" id="h-act">' + ACTS.map(a => '<option value="' + a.id + '"' + (a.id === act(m.activity).id ? ' selected' : '') + '>' + esc(actLabel(a.id)) + '</option>').join('') + '</select>';
     html += '<label class="field">' + esc(t('rec.notes')) + '</label><textarea class="text" id="h-notes" rows="3" placeholder="' + esc(t('rec.notesPh')) + '">' + esc(m.notes || '') + '</textarea>';
+    if (trimMetres()) html += '<p class="small muted">' + esc(t('trim.note', { dist: U.fmtLen(trimMetres()) })) + '</p>';
+    html += '<div class="btns"><button class="btn" id="h-replay">' + ICON_PLAY + esc(t('rec.replay')) + '</button></div>';
     html += '<div class="btns"><button class="btn primary" id="h-card">' + U.ICON.image + esc(t('rec.shareCard')) + '</button>' +
       '<button class="btn" id="h-gpx">' + U.ICON.route + esc(t('rec.shareGpx')) + '</button>' +
       (info.health && healthOk ? '<button class="btn" id="h-health">' + esc(m.healthSynced ? t('health.synced') : t('health.save')) + '</button>' : '') + '</div>';
@@ -210,14 +235,21 @@
     $('#h-name', body).onchange = (e) => Native.trackUpdate(JSON.stringify({ id, name: e.target.value.trim() }));
     $('#h-notes', body).onchange = (e) => Native.trackUpdate(JSON.stringify({ id, notes: e.target.value.trim() }));
     $('#h-act', body).onchange = async (e) => { await Native.trackUpdate(JSON.stringify({ id, activity: e.target.value })); openHike(id); };
-    $('#h-card', body).onclick = () => shareCard({
-      title: $('#h-name', body).value.trim() || m.name, date: m.start, line: pts.map(p => [p[0], p[1]]),
+    $('#h-replay', body).onclick = () => replay(id, m, pts);
+    $('#h-card', body).onclick = () => {
+      const shared = sharedPoints(pts);
+      if (!shared) return;
+      shareCard({
+      title: $('#h-name', body).value.trim() || m.name, date: m.start, line: shared.map(p => [p[0], p[1]]),
       stats: [[t('rec.distance'), U.fmtLen(m.distance)], [t('rec.moving'), fmtDur(m.movingMs)], [t('rec.climb'), fmtGain(m.gain || m.demGain || 0)]],
       caption: t('rec.caption', { name: $('#h-name', body).value.trim() || m.name, dist: U.fmtLen(m.distance), gain: fmtGain(m.gain || 0), time: fmtDur(m.movingMs) }),
       filename: 'bristlecone-' + act(m.activity).id + '-' + new Date(m.start).toISOString().slice(0, 10) + '.png'
-    });
+      });
+    };
     $('#h-gpx', body).onclick = () => {
-      const gpx = BcOffline.toGpxTrack($('#h-name', body).value.trim() || m.name, pts);
+      const shared = sharedPoints(pts);
+      if (!shared) return;
+      const gpx = BcOffline.toGpxTrack($('#h-name', body).value.trim() || m.name, shared, act(m.activity).id, $('#h-notes', body).value.trim());
       Native.shareFile(BcOffline.b64(gpx), 'bristlecone-' + act(m.activity).id + '-' + new Date(m.start).toISOString().slice(0, 10) + '.gpx', 'application/gpx+xml', m.name);
     };
     const hb = $('#h-health', body);
@@ -268,6 +300,78 @@
       '<button class="btn small" data-open>' + esc(t('pl.show')) + '</button></div></div>';
   }
   function bindItems(el) { $$('[data-hike]', el).forEach(c => { $('[data-open]', c).onclick = () => openHike(c.dataset.hike); }); }
+
+  // ------------------------------------------------------------------ Replay
+  const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
+  let rp = null;
+
+  /** Moves a marker along the route by distance, so pauses in the recording do not stall it. */
+  function replay(id, m, pts) {
+    if (pts.length < 2) return;
+    endReplay();
+    U.closeSheet();
+    drawTrack(pts);
+    fit(pts.map(p => [p[0], p[1]]), { top: 90, bottom: 200, left: 40, right: 40 });
+    const ser = series(pts), total = ser[ser.length - 1].d;
+    const el = document.createElement('div'); el.className = 'replay-dot';
+    const marker = new maplibregl.Marker({ element: el }).setLngLat([pts[0][0], pts[0][1]]).addTo(U.map);
+    const bar = document.createElement('div');
+    bar.className = 'replay-bar';
+    bar.innerHTML = '<button class="btn small primary" id="rp-play" aria-label="' + esc(t('rec.replay')) + '">' + ICON_PAUSE + '</button>' +
+      '<div class="grow"><input type="range" id="rp-pos" min="0" max="1000" value="0" aria-label="' + esc(t('rec.replay')) + '"><div class="row between small"><span id="rp-dist"></span><span id="rp-time"></span></div></div>' +
+      '<button class="btn small" id="rp-speed">1×</button><button class="close" id="rp-close" aria-label="' + esc(t('common.close')) + '"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    document.body.appendChild(bar);
+    document.body.classList.add('replaying');
+    rp = { marker, bar, pos: 0, playing: true, speed: 1, last: 0, drawn: 0, raf: 0, id };
+    const DURATION = 20000; // the whole route in 20 seconds at 1×
+    const show = () => {
+      const target = rp.pos * total;
+      let i = 1; while (i < ser.length - 1 && ser[i].d < target) i++;
+      const a = ser[i - 1], b = ser[i], f = b.d > a.d ? (target - a.d) / (b.d - a.d) : 0;
+      const lon = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, lat = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+      rp.marker.setLngLat([lon, lat]);
+      $('#rp-pos').value = String(Math.round(rp.pos * 1000));
+      $('#rp-dist').textContent = U.fmtLen(target) + ' / ' + U.fmtLen(total);
+      $('#rp-time').textContent = fmtDur(a.t + (b.t - a.t) * f - ser[0].t);
+      // The part already covered is drawn over the route, a few times a second.
+      if (performance.now() - rp.drawn > 120) {
+        rp.drawn = performance.now();
+        const done = pts.slice(0, i).map(p => [p[0], p[1]]).concat([[lon, lat]]);
+        U.data.hl = { type: 'FeatureCollection', features: done.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: done } }] : [] };
+        U.setData('hl');
+      }
+    };
+    const frame = (now) => {
+      if (!rp) return;
+      if (rp.playing) {
+        if (rp.last) rp.pos = Math.min(1, rp.pos + (now - rp.last) * rp.speed / DURATION);
+        show();
+        if (rp.pos >= 1) { rp.playing = false; $('#rp-play').innerHTML = ICON_PLAY; }
+      }
+      rp.last = now;
+      rp.raf = requestAnimationFrame(frame);
+    };
+    $('#rp-play').onclick = () => {
+      if (rp.pos >= 1) rp.pos = 0;
+      rp.playing = !rp.playing; rp.last = 0;
+      $('#rp-play').innerHTML = rp.playing ? ICON_PAUSE : ICON_PLAY;
+    };
+    $('#rp-pos').oninput = (e) => { rp.pos = Number(e.target.value) / 1000; rp.drawn = 0; show(); };
+    $('#rp-speed').onclick = () => { rp.speed = rp.speed >= 4 ? 1 : rp.speed * 2; $('#rp-speed').textContent = rp.speed + '×'; };
+    $('#rp-close').onclick = () => { endReplay(); openHike(id, true); };
+    show();
+    rp.raf = requestAnimationFrame(frame);
+  }
+
+  function endReplay() {
+    if (!rp) return;
+    cancelAnimationFrame(rp.raf);
+    rp.marker.remove(); rp.bar.remove();
+    document.body.classList.remove('replaying');
+    rp = null;
+    U.data.hl = { type: 'FeatureCollection', features: [] }; U.setData('hl');
+  }
 
   // ------------------------------------------------------------------ Route card image
   function loadImage(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
@@ -343,6 +447,6 @@
   }
   function onRecording(r) { if (!r.started) U.toast(t('loc.permission'), 5000); setTimeout(poll, 600); }
 
-  window.BcRecord = { init, poll, renderHikes, openHike, listTracks, readPoints, ACTS, act, actLabel, fmtSpeed, shareCard, onHealthPermission, onHealthResult, onRecording, healthPrivacy, fmtDur, fmtGain, fit };
+  window.BcRecord = { init, poll, renderHikes, openHike, listTracks, readPoints, trimEnds, trimMetres, sharedPoints, endReplay, ACTS, act, actLabel, fmtSpeed, shareCard, onHealthPermission, onHealthResult, onRecording, healthPrivacy, fmtDur, fmtGain, fit };
   init();
 })();

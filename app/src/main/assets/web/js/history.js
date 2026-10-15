@@ -73,6 +73,7 @@
 
   // ------------------------------------------------------------------ The sheet
   async function open() {
+    if (!U.isUnlocked()) { U.whenUnlocked(open); return; }
     list = await R().listTracks();
     const kinds = R().ACTS.filter(a => list.some(m => R().act(m.activity).id === a.id));
     if (state.kind !== 'all' && !kinds.some(a => a.id === state.kind)) state.kind = 'all';
@@ -90,6 +91,7 @@
     }
     html += '<input class="text" id="hist-q" type="search" placeholder="' + esc(t('hist.search')) + '" value="' + esc(state.q) + '">';
     html += '<div id="hist-list"></div>';
+    html += '<div class="btns"><button class="btn" id="hist-gpx">' + U.ICON.route + esc(t('hist.export')) + '</button></div>';
     const body = U.openSheet(html);
     U.bindSeg(body, 'hist-period', (v) => { state.period = v; renderTotals(body); });
     $$('[data-kind]', body).forEach(b => b.onclick = () => {
@@ -98,8 +100,25 @@
       renderTotals(body); renderList(body);
     });
     $('#hist-q', body).oninput = (e) => { state.q = e.target.value; renderTotals(body); renderList(body); };
+    $('#hist-gpx', body).onclick = () => exportGpx(filtered());
     renderTotals(body);
     renderList(body);
+  }
+
+  /** The trips in view as one GPX file, with the same start and finish trimming as other shares. */
+  async function exportGpx(items) {
+    if (!items.length) return;
+    U.setBusy(1);
+    try {
+      const tracks = [];
+      for (const m of items) {
+        const pts = R().trimEnds(await R().readPoints(m.id), R().trimMetres());
+        if (pts.length > 1) tracks.push({ name: m.name || R().actLabel(m.activity), activity: R().act(m.activity).id, notes: m.notes || '', pts });
+      }
+      if (!tracks.length) { U.toast(t('trim.tooShort'), 6000); return; }
+      const gpx = BcOffline.toGpxTracks(t('hist.title'), tracks);
+      Native.shareFile(BcOffline.b64(gpx), 'bristlecone-activities-' + new Date().toISOString().slice(0, 10) + '.gpx', 'application/gpx+xml', t('hist.title'));
+    } finally { U.setBusy(-1); }
   }
 
   function renderTotals(body) {
