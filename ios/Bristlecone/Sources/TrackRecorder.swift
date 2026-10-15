@@ -165,6 +165,9 @@ final class TrackRecorder: NSObject, CLLocationManagerDelegate {
     private(set) var paused = false
     private(set) var stats: TrackStats?
     private(set) var steps = 0
+    /// What is being recorded (see Activities), or nil when nothing is. Read by the location engine.
+    private(set) static var activeActivity: String?
+    private(set) var activity = Activities.defaultId
 
     init(store: TrackStore) {
         self.store = store
@@ -176,10 +179,13 @@ final class TrackRecorder: NSObject, CLLocationManagerDelegate {
         manager.pausesLocationUpdatesAutomatically = false
     }
 
-    func start() {
+    func start(activity: String) {
         guard currentId == nil else { return }
         let id = "t" + String(Int64(NetCache.now()))
         currentId = id
+        self.activity = Activities.clean(activity)
+        TrackRecorder.activeActivity = self.activity
+        UserDefaults.standard.set(self.activity, forKey: "recordingActivity")
         stats = TrackStats()
         steps = 0
         paused = false
@@ -196,6 +202,8 @@ final class TrackRecorder: NSObject, CLLocationManagerDelegate {
         for f in store.readFixes(id) { s.add(t: f.0, lat: f.1, lon: f.2, acc: 5, gpsAlt: f.4, baroAlt: .nan) }
         stats = s
         currentId = id
+        activity = Activities.clean(UserDefaults.standard.string(forKey: "recordingActivity"))
+        TrackRecorder.activeActivity = activity
         paused = false
         listen()
     }
@@ -211,9 +219,10 @@ final class TrackRecorder: NSObject, CLLocationManagerDelegate {
         altimeter.stopRelativeAltitudeUpdates()
         let id = currentId ?? ""
         if let s = stats, !id.isEmpty {
-            if s.points > 1 { store.writeMeta(TrackRecorder.summary(id: id, s, steps: steps)) } else { store.delete(id) }
+            if s.points > 1 { store.writeMeta(TrackRecorder.summary(id: id, s, steps: Activities.onFoot(activity) ? steps : 0, activity: activity)) } else { store.delete(id) }
         }
         currentId = nil
+        TrackRecorder.activeActivity = nil
         UserDefaults.standard.removeObject(forKey: "recording")
         return id
     }
@@ -257,11 +266,11 @@ final class TrackRecorder: NSObject, CLLocationManagerDelegate {
         guard let id = currentId, let s = stats else { return ["recording": false] }
         return ["recording": true, "id": id, "paused": paused, "distance": s.distance, "gain": s.gain,
                 "movingMs": s.movingMs, "elapsedMs": NetCache.now() - (s.startTime > 0 ? s.startTime : NetCache.now()),
-                "points": s.points, "steps": steps]
+                "points": s.points, "steps": Activities.onFoot(activity) ? steps : 0, "activity": activity]
     }
 
-    static func summary(id: String, _ s: TrackStats, steps: Int) -> [String: Any] {
-        ["id": id, "name": NSNull(), "start": s.startTime, "end": s.endTime, "distance": s.distance,
+    static func summary(id: String, _ s: TrackStats, steps: Int, activity: String) -> [String: Any] {
+        ["id": id, "name": NSNull(), "activity": activity, "start": s.startTime, "end": s.endTime, "distance": s.distance,
          "gain": s.gain, "loss": s.loss, "barometer": s.usedBarometer, "movingMs": s.movingMs,
          "elapsedMs": s.elapsedMs, "points": s.points, "steps": steps,
          "maxAlt": s.maxAltitude.isNaN ? NSNull() as Any : s.maxAltitude, "healthSynced": false]

@@ -16,6 +16,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
     private let storage: Storage
     private let tracks: TrackStore
     private let recorder: TrackRecorder
+    private var pendingActivity = Activities.defaultId
     private let location = LocationEngine()
     private let health = HealthSync()
     private var regions: RegionManager!
@@ -184,7 +185,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
         case "sms": sms(s(0)); reply(nil)
 
         // Recording
-        case "trackStart": startRecording(); reply(nil)
+        case "trackStart": pendingActivity = Activities.clean(s(2)); startRecording(); reply(nil)
         case "trackPause": recorder.pause(); reply(nil)
         case "trackResume": recorder.resume(); reply(nil)
         case "trackStop": reply(recorder.stop())
@@ -198,7 +199,8 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
             later {
                 guard let d = upd.data(using: .utf8), let u = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
                       let id = u["id"] as? String, var meta = self.tracks.readMeta(id) else { return false }
-                for k in ["name", "healthSynced", "demGain"] where u[k] != nil { meta[k] = u[k] }
+                for k in ["name", "healthSynced", "demGain", "notes", "preview"] where u[k] != nil { meta[k] = u[k] }
+                if let a = u["activity"] as? String { meta["activity"] = Activities.clean(a) }
                 self.tracks.writeMeta(meta)
                 return true
             }
@@ -254,14 +256,14 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
         callJs("onPermission", ["location": location.authorized, "steps": location.hasStepCounter])
         if pendingRecording && location.manager.authorizationStatus != .notDetermined {
             pendingRecording = false
-            if location.authorized { recorder.start() }
+            if location.authorized { recorder.start(activity: pendingActivity) }
             callJs("onRecording", ["started": location.authorized])
         }
     }
 
     private func startRecording() {
         if location.authorized {
-            recorder.start()
+            recorder.start(activity: pendingActivity)
             callJs("onRecording", ["started": true])
         } else if location.manager.authorizationStatus == .notDetermined {
             pendingRecording = true

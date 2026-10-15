@@ -145,7 +145,7 @@ public final class LocationEngine implements LocationListener, SensorEventListen
                     (float) loc.getAltitude(), System.currentTimeMillis()).getDeclination();
             if (loc.getAccuracy() <= GOOD_GPS_ACC) {
                 dr.anchor(loc.getLatitude(), loc.getLongitude(), loc.getAccuracy(), System.currentTimeMillis());
-                train(loc);
+                if (Activities.trainsStride(currentActivity())) train(loc);
             }
         } else {
             lastNet = loc; lastNetElapsed = now;
@@ -155,6 +155,11 @@ public final class LocationEngine implements LocationListener, SensorEventListen
             }
         }
         emit();
+    }
+
+    /** Outside a recording the app assumes walking, as it always has. */
+    private static String currentActivity() {
+        return TrackService.currentId != null ? TrackService.activity : Activities.DEFAULT;
     }
 
     private void train(Location loc) {
@@ -211,7 +216,7 @@ public final class LocationEngine implements LocationListener, SensorEventListen
             stepIdx++;
             stepCount++;
             trainSteps++;
-            if (!gpsFresh() && dr.isAnchored() && !Double.isNaN(headingMag)) {
+            if (!gpsFresh() && dr.isAnchored() && !Double.isNaN(headingMag) && Activities.onFoot(currentActivity())) {
                 double cadence = cadence(now);
                 double step = model.predict(cadence, vSpeed);
                 dr.step(step, (headingMag + declination + 360) % 360, model.confidence(), System.currentTimeMillis());

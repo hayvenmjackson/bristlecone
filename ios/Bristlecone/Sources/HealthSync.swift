@@ -11,7 +11,7 @@ final class HealthSync {
     var available: Bool { HKHealthStore.isHealthDataAvailable() }
 
     private var shareTypes: Set<HKSampleType> {
-        [HKObjectType.workoutType(), HKSeriesType.workoutRoute(), HKQuantityType(.distanceWalkingRunning)]
+        [HKObjectType.workoutType(), HKSeriesType.workoutRoute(), HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling)]
     }
 
     var granted: Bool {
@@ -34,15 +34,17 @@ final class HealthSync {
         let distance = (meta["distance"] as? NSNumber)?.doubleValue ?? 0
         let gain = (meta["gain"] as? NSNumber)?.doubleValue ?? 0
 
+        let activity = meta["activity"] as? String
+        guard let type = Activities.workoutType(activity) else { finish(false, "not exercise"); return }
         let config = HKWorkoutConfiguration()
-        config.activityType = .hiking
+        config.activityType = type
         config.locationType = .outdoor
         let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: .local())
         builder.beginCollection(withStart: start) { ok, error in
             guard ok else { finish(false, error?.localizedDescription); return }
             var samples: [HKSample] = []
-            if distance > 0 {
-                samples.append(HKQuantitySample(type: HKQuantityType(.distanceWalkingRunning),
+            if distance > 0, let distanceType = Activities.distanceType(activity) {
+                samples.append(HKQuantitySample(type: distanceType,
                                                 quantity: HKQuantity(unit: .meter(), doubleValue: distance), start: start, end: end))
             }
             var metadata: [String: Any] = [HKMetadataKeyIndoorWorkout: false]

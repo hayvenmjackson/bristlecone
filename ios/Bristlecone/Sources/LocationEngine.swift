@@ -124,7 +124,7 @@ final class LocationEngine: NSObject, CLLocationManagerDelegate {
                 lastFine = l; lastFineAt = now
                 if l.horizontalAccuracy <= LocationEngine.goodAccuracy {
                     dr.anchor(lat: l.coordinate.latitude, lon: l.coordinate.longitude, accuracy: l.horizontalAccuracy, timeMs: now)
-                    train(l)
+                    if Activities.trainsStride(TrackRecorder.activeActivity) { train(l) }
                 }
             } else {
                 lastCoarse = l; lastCoarseAt = now
@@ -153,7 +153,8 @@ final class LocationEngine: NSObject, CLLocationManagerDelegate {
         stepCount += delta
         trainSteps += delta
         if let c = d.currentCadence?.doubleValue, c > 0 { cadenceNow = c }
-        if !fineFresh && dr.anchored && !heading.isNaN {
+        // Outside a recording the app assumes walking, as it always has.
+        if !fineFresh && dr.anchored && !heading.isNaN && (TrackRecorder.activeActivity == nil || Activities.onFoot(TrackRecorder.activeActivity)) {
             let cadence = cadenceNow.isNaN ? 1.8 : cadenceNow
             let step = model.predict(cadence: cadence, verticalSpeed: vSpeed)
             dr.step(metres: step * Double(delta), heading: heading, confidence: model.confidence, timeMs: NetCache.now())

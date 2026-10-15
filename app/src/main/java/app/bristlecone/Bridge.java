@@ -127,7 +127,9 @@ public final class Bridge {
 
     // ---------------------------------------------------------------- Recording a hike
 
-    @JavascriptInterface public void trackStart(final String title, final String text) {
+    @JavascriptInterface public void trackStart(final String title, final String text) { trackStart(title, text, Activities.DEFAULT); }
+    @JavascriptInterface public void trackStart(final String title, final String text, final String activity) {
+        if (TrackService.currentId == null) TrackService.activity = Activities.clean(activity);
         a.runOnUiThread(new Runnable() { @Override public void run() { a.startRecording(title, text); } });
     }
     @JavascriptInterface public void trackPause() { TrackService.send(a, TrackService.ACTION_PAUSE, null, null); }
@@ -152,7 +154,8 @@ public final class Bridge {
             o.put("movingMs", s.movingMs());
             o.put("elapsedMs", System.currentTimeMillis() - (s.startTime() > 0 ? s.startTime() : System.currentTimeMillis()));
             o.put("points", s.points());
-            o.put("steps", TrackService.steps);
+            o.put("steps", Activities.countsSteps(TrackService.activity) ? TrackService.steps : 0);
+            o.put("activity", TrackService.activity);
             return o.toString();
         } catch (Exception e) {
             return "{}";
@@ -171,6 +174,9 @@ public final class Bridge {
             if (in.has("name")) m.put("name", in.getString("name"));
             if (in.has("healthSynced")) m.put("healthSynced", in.getBoolean("healthSynced"));
             if (in.has("demGain")) m.put("demGain", in.getDouble("demGain"));
+            if (in.has("activity")) m.put("activity", Activities.clean(in.getString("activity")));
+            if (in.has("notes")) m.put("notes", in.getString("notes"));
+            if (in.has("preview")) m.put("preview", in.getString("preview"));
             a.tracks.writeMeta(m);
             return true;
         } catch (Exception e) {

@@ -9,7 +9,6 @@ import android.health.connect.datatypes.DistanceRecord;
 import android.health.connect.datatypes.ElevationGainedRecord;
 import android.health.connect.datatypes.ExerciseRoute;
 import android.health.connect.datatypes.ExerciseSessionRecord;
-import android.health.connect.datatypes.ExerciseSessionType;
 import android.health.connect.datatypes.Metadata;
 import android.health.connect.datatypes.Record;
 import android.health.connect.datatypes.StepsRecord;
@@ -75,7 +74,10 @@ public final class HealthSync {
                 if (!p.isNull(3)) lb.setAltitude(Length.fromMeters(p.getDouble(3)));
                 locs.add(lb.build());
             }
-            ExerciseSessionRecord.Builder sb = new ExerciseSessionRecord.Builder(mb.build(), start, end, ExerciseSessionType.EXERCISE_SESSION_TYPE_HIKING)
+            String activity = meta.optString("activity", Activities.DEFAULT);
+            int type = Activities.healthType(activity);
+            if (type < 0) { done.result(false, "not exercise"); return; }
+            ExerciseSessionRecord.Builder sb = new ExerciseSessionRecord.Builder(mb.build(), start, end, type)
                     .setStartZoneOffset(off).setEndZoneOffset(off);
             String name = meta.optString("name", "");
             if (!name.isEmpty() && !"null".equals(name)) sb.setTitle(name);
@@ -88,7 +90,7 @@ public final class HealthSync {
                 records.add(new ElevationGainedRecord.Builder(new Metadata.Builder().setClientRecordId(id + "-e").build(), start, end,
                         Length.fromMeters(meta.optDouble("gain", 0))).setStartZoneOffset(off).setEndZoneOffset(off).build());
             }
-            long steps = meta.optLong("steps", 0);
+            long steps = Activities.countsSteps(activity) ? meta.optLong("steps", 0) : 0;
             if (steps > 0) {
                 records.add(new StepsRecord.Builder(new Metadata.Builder().setClientRecordId(id + "-s").build(), start, end, steps)
                         .setStartZoneOffset(off).setEndZoneOffset(off).build());

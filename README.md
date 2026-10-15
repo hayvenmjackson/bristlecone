@@ -34,7 +34,8 @@ A free Apple ID signs apps for 7 days; AltStore refreshes them when the iPad and
 | Trailheads | Tap for the OpenStreetMap address if tagged, otherwise the nearest road address (Nominatim), otherwise coordinates. Also nearby parking (OpenStreetMap and NPS), photos and the named trails that start there. Copy, share, or open directions in any maps app. |
 | Trail details | Full route length (from the OpenStreetMap route relation, or connected segments of the same name), out-and-back distance, climb, high point, steepest sustained grade, typical time (Naismith's rule) and an elevation profile from public terrain data. A rating from Easy to Expert Only with its reasons listed: OpenStreetMap tags (SAC scale, via ferrata, ladders, hazards, visibility), warnings quoted from official descriptions (iron rungs, exposed ledges, fear of heights), and effort by the Shenandoah National Park formula. Effort alone never makes a trail Expert Only. Descriptions from the NPS and Wikipedia, credited photos from the NPS and Wikimedia Commons, and parking. When a source has nothing, the card says so. |
 | Search | Places, trails and hiking regions. About 60 curated regions (Northern and Southern Utah, Wyoming mountains, coastal Maine, North Maine Woods, the Grand Canyon area, the Canadian Rockies, Gaspésie and more) match in all four languages and work offline; states, provinces and parks from search also list their named trails. |
-| Recording | Records hikes with the screen off (foreground service with its notification), recovering if Android stops the app mid-hike. Distance with GPS jitter filtered, moving time, climb from the barometer (or smoothed GPS altitude), steps. |
+| Recording | Records hikes, walks, trail runs, snowshoe trips, mountain bike and bike rides, horseback rides, Nordic and backcountry ski tours, paddles and ATV/OHV trips with the screen off (foreground service with its notification), recovering if Android stops the app mid-hike. Distance with GPS jitter filtered, moving time, climb from the barometer (or smoothed GPS altitude), steps. |
+| Activity history | Every recorded trip, stored only on the device: totals for the week, month, year or all time, filters by activity, search across names and notes, route thumbnails, and a detail view with elevation profile, splits, average speed, notes and the activity type (changeable later). Only walks and hikes teach the stride model; steps drive position estimates only for activities on foot. |
 | Sharing | A 1080 x 1350 route card (map, stats, Bristlecone credit) and GPX through Android's share sheet: TikTok, Instagram, Facebook, X, LinkedIn, messaging, Strava or Garmin import, anything installed. "Text my location" opens messaging with your coordinates, accuracy (flagged when estimated) and a map link. |
 | Health Connect and Apple Health | Android 14 and newer: saves recorded hikes (exercise session with route, distance, elevation gained, steps) to Health Connect. iOS: saves a hiking workout with route, distance and elevation gained to Apple Health (steps are left out because the iPhone already counts them). Write only; the app never reads health data. |
 | Position | GPS first. If GPS drops out: Wi-Fi and cell location, then dead reckoning from the last good fix (step detector, compass with magnetic declination, barometer) using a stride model the phone learns from your own GPS walks (recursive least squares). Anything but GPS is shown in amber, labeled as an estimate, with a growing uncertainty circle and a prompt to confirm against landmarks. The dot is matched to the nearest trail when one is inside the circle. |
@@ -70,6 +71,7 @@ app/src/main/java/app/bristlecone/   Native layer
   TrackStats.java       Distance, moving time and climb from raw fixes
   TrackStore.java       Recorded hikes on disk
   HealthSync.java       Health Connect (Android 14+)
+  Activities.java       Activity kinds: stride rules and Health Connect types
   ShareProvider.java    Files handed to other apps for sharing
 ios/Bristlecone/Sources/             iOS shell (Swift)
   WebViewController.swift   Web view host and the calls available to the UI
@@ -80,6 +82,7 @@ ios/Bristlecone/Sources/             iOS shell (Swift)
   Estimation.swift          Stride model and dead reckoning
   TrackRecorder.swift       Hike recording, statistics and storage
   HealthSync.swift          Apple Health
+  Activities.swift          Activity kinds: stride rules and Apple Health types
   Storage.swift, Zip.swift  Settings, backup and restore
 ios/project.yml                      XcodeGen project spec
 .github/workflows/                   GitHub builds (iOS .ipa, Android APK)
@@ -89,7 +92,8 @@ app/src/main/assets/web/             UI (shared by both apps)
   js/reports.js         Conditions and reports
   js/offline.js         Region planning, GPX and image export
   js/icons.js           Map icons and highway shields
-  js/record.js          Recording, route cards, Health Connect UI
+  js/record.js          Recording, activity kinds, route cards, Health Connect UI
+  js/history.js         Activity history (totals, filters, search)
   js/trailinfo.js       Trail details and the difficulty rating
   js/regions.js         Region gazetteer and trail lists
   js/reportfilter.js    Trail-report filter (weights in reportfilter-model.js)

@@ -51,7 +51,7 @@
 
   const Native = {
     _webFix(fix) { if (!N && web.id && !web.paused && fix.lat != null) web.pts.push([fix.lon, fix.lat, fix.time || Date.now(), fix.alt != null ? fix.alt : null]); },
-    trackStart(title, text) { if (N) return N.trackStart(title, text); web.id = 't' + Date.now(); web.pts = []; web.paused = false; web.start = Date.now(); },
+    trackStart(title, text, activity) { if (N) return N.trackStart(title, text, activity || 'hike'); web.id = 't' + Date.now(); web.pts = []; web.paused = false; web.start = Date.now(); web.activity = activity || 'hike'; },
     trackPause() { if (N) return N.trackPause(); web.paused = true; },
     trackResume() { if (N) return N.trackResume(); web.paused = false; },
     trackStop() {
@@ -60,7 +60,7 @@
       if (!id || web.pts.length < 2) return id || '';
       const st = webStats();
       const list = lsGet('bc_tracks') || {};
-      list[id] = { meta: { id, name: null, start: web.pts[0][2], end: web.pts[web.pts.length - 1][2], distance: st.distance, gain: st.gain, loss: 0, barometer: false, movingMs: st.movingMs, elapsedMs: st.movingMs, points: web.pts.length, steps: 0, healthSynced: false }, pts: web.pts };
+      list[id] = { meta: { id, name: null, activity: web.activity || 'hike', start: web.pts[0][2], end: web.pts[web.pts.length - 1][2], distance: st.distance, gain: st.gain, loss: 0, barometer: false, movingMs: st.movingMs, elapsedMs: st.movingMs, points: web.pts.length, steps: 0, healthSynced: false }, pts: web.pts };
       lsSet('bc_tracks', list);
       return id;
     },

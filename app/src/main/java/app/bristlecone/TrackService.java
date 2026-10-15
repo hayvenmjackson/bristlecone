@@ -40,6 +40,8 @@ public class TrackService extends Service implements LocationListener, SensorEve
     public static volatile boolean paused;
     public static volatile TrackStats stats;
     public static volatile int steps;
+    /** What is being recorded (see Activities). Set by the bridge before a recording starts. */
+    public static volatile String activity = Activities.DEFAULT;
     public static volatile double lastLat = Double.NaN, lastLon = Double.NaN;
 
     private TrackStore store;
@@ -83,7 +85,8 @@ public class TrackService extends Service implements LocationListener, SensorEve
         steps = 0;
         paused = false;
         lastLat = Double.NaN; lastLon = Double.NaN;
-        getSharedPreferences("track", MODE_PRIVATE).edit().putString("recording", currentId).apply();
+        activity = Activities.clean(activity);
+        getSharedPreferences("track", MODE_PRIVATE).edit().putString("recording", currentId).putString("activity", activity).apply();
         listen();
     }
 
@@ -93,6 +96,7 @@ public class TrackService extends Service implements LocationListener, SensorEve
      */
     private boolean recover() {
         String id = getSharedPreferences("track", MODE_PRIVATE).getString("recording", null);
+        activity = Activities.clean(getSharedPreferences("track", MODE_PRIVATE).getString("activity", null));
         if (id == null || !store.points(id).exists()) return false;
         goForeground();
         TrackStats s = new TrackStats();
@@ -155,7 +159,7 @@ public class TrackService extends Service implements LocationListener, SensorEve
         if (sm != null) sm.unregisterListener(this);
         String id = currentId;
         TrackStats s = stats;
-        if (id != null && s != null && s.points() > 1) store.writeMeta(summary(id, s, steps, null));
+        if (id != null && s != null && s.points() > 1) store.writeMeta(summary(id, s, Activities.countsSteps(activity) ? steps : 0, null));
         else if (id != null) store.delete(id);
         currentId = null;
         getSharedPreferences("track", MODE_PRIVATE).edit().remove("recording").apply();
@@ -168,6 +172,7 @@ public class TrackService extends Service implements LocationListener, SensorEve
         try {
             m.put("id", id);
             m.put("name", name == null ? JSONObject.NULL : name);
+            m.put("activity", Activities.clean(activity));
             m.put("start", s.startTime());
             m.put("end", s.endTime());
             m.put("distance", s.distance());
