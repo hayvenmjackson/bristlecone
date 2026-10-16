@@ -6,7 +6,12 @@ name: iOS build
 on:
   push:
     branches: [main]
+    # A version tag (v1.3.0) also publishes the build to a public GitHub Release.
+    tags: ["v*"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ipa:
@@ -45,6 +50,18 @@ jobs:
         with:
           name: Bristlecone-ios
           path: ios/Bristlecone-unsigned.ipa
+
+      - name: Attach to the public release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Both workflows run for the same tag; whichever gets there first creates the release.
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" \
+            --notes-file ".github/release-notes/$TAG.md" || true
+          cp ios/Bristlecone-unsigned.ipa "Bristlecone-${TAG#v}-ios-unsigned.ipa"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-ios-unsigned.ipa"
 
       - name: Upload the build log
         if: always()

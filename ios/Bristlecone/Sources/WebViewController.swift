@@ -9,7 +9,7 @@ import LocalAuthentication
 /// flow the other way through window.bcNative, exactly as on Android.
 final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply, WKNavigationDelegate,
                                 UIDocumentPickerDelegate, MFMessageComposeViewControllerDelegate {
-    static let version = "1.2.0"
+    static let version = "1.3.0"
 
     private var web: WKWebView!
     private let root: URL
