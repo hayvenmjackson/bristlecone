@@ -6,7 +6,9 @@ Android (8.0 and newer) and iPhone and iPad (iOS 16 and newer). One map UI, buil
 
 ## Install the test build
 
-1. Copy `bristlecone-debug.apk` to the phone.
+Download the latest version from the [Releases page](https://github.com/hayvenmjackson/bristlecone/releases/latest): `Bristlecone-<version>-android.apk` for Android and `Bristlecone-<version>-ios-unsigned.ipa` for iPhone and iPad. No GitHub account is needed.
+
+1. Copy the APK to the phone (or download it there).
 2. Open it and allow "Install unknown apps" for your file manager when Android asks.
 3. On first launch, allow Location (and Physical activity, which the step counter needs for position estimates).
 

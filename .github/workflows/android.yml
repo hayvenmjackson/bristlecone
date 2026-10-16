@@ -40,4 +40,4 @@ jobs:
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" \
             --notes-file ".github/release-notes/$TAG.md" || true
           cp "$(ls app/build/outputs/apk/debug/*.apk | head -1)" "Bristlecone-${TAG#v}-android.apk"
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-android.apk"
+          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-android.apk" && break; sleep 15; done

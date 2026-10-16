@@ -61,7 +61,7 @@ jobs:
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" \
             --notes-file ".github/release-notes/$TAG.md" || true
           cp ios/Bristlecone-unsigned.ipa "Bristlecone-${TAG#v}-ios-unsigned.ipa"
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-ios-unsigned.ipa"
+          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-ios-unsigned.ipa" && break; sleep 15; done
 
       - name: Upload the build log
         if: always()
