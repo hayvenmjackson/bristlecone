@@ -135,7 +135,7 @@
     'about.story': 'The Great Basin bristlecone pine grows on high, dry ground where little else will. It grows slowly, keeps a clear record of every year it stands, and has done so for thousands of years. Bristlecone the app is built on the same idea: steady, accurate and plain about what it knows. Every line on the map comes from public data and is redrawn for the trail. Reports are sorted newest first. When the app is estimating your position, it tells you.',
     'about.estimates': 'How position estimates work',
     'about.estimatesBody': 'With a clear GPS fix, Bristlecone uses it directly and quietly learns the length of your stride at different paces and grades. If GPS drops out, it tries Wi-Fi and cell location, then counts your steps and follows your compass heading from the last good fix, using that learned stride. The amber circle grows as the estimate ages. Treat it as a guide and confirm with landmarks.',
-    'about.credits': 'Data sources and credits', 'about.maker': 'Made by H.M. Jackson.', 'about.version': 'Version {v}',
+    'about.credits': 'Data sources and credits', 'about.maker': 'Designed by Krummholz AI LLC.', 'about.version': 'Version {v}',
     'about.privacy': 'No account. No tracking. Your location never leaves the phone except as map requests to the public data sources listed here.',
 
     'note.1': 'Bristlecone pines can live for more than 4,000 years on thin, rocky soil.',
@@ -446,7 +446,7 @@
     'about.story': 'Le pin de Bristlecone du Grand Bassin pousse sur des terrains hauts et secs où peu d’autres arbres survivent. Il croît lentement, garde une trace nette de chaque année vécue, et ce, depuis des millénaires. L’application Bristlecone repose sur la même idée : constante, précise et franche sur ce qu’elle sait. Chaque ligne de la carte provient de données publiques et est redessinée pour le sentier. Les rapports sont classés du plus récent au plus ancien. Quand l’application estime votre position, elle vous le dit.',
     'about.estimates': 'Comment fonctionnent les estimations de position',
     'about.estimatesBody': 'Avec un bon signal GPS, Bristlecone l’utilise directement et apprend discrètement la longueur de votre foulée selon le rythme et la pente. Si le GPS décroche, l’application essaie la localisation Wi-Fi et cellulaire, puis compte vos pas et suit le cap de la boussole depuis le dernier point fiable, en utilisant cette foulée apprise. Le cercle ambré grandit à mesure que l’estimation vieillit. Considérez-la comme un guide et confirmez avec des repères.',
-    'about.credits': 'Sources de données et mentions', 'about.maker': 'Conçu par H.M. Jackson.', 'about.version': 'Version {v}',
+    'about.credits': 'Sources de données et mentions', 'about.maker': 'Conçu par Krummholz AI LLC.', 'about.version': 'Version {v}',
     'about.privacy': 'Aucun compte. Aucun pistage. Votre position ne quitte le téléphone que sous forme de requêtes cartographiques vers les sources publiques énumérées ici.',
 
     'note.1': 'Les pins de Bristlecone peuvent vivre plus de 4 000 ans sur un sol mince et rocailleux.',
@@ -748,7 +748,7 @@
     'about.story': 'El pino bristlecone de la Gran Cuenca crece en terrenos altos y secos donde casi nada más prospera. Crece despacio, guarda un registro claro de cada año que vive y lleva miles de años haciéndolo. La app Bristlecone parte de la misma idea: constante, precisa y clara sobre lo que sabe. Cada línea del mapa viene de datos públicos y se redibuja para el sendero. Los reportes se ordenan del más reciente al más antiguo. Cuando la app está estimando tu posición, te lo dice.',
     'about.estimates': 'Cómo funcionan las estimaciones de posición',
     'about.estimatesBody': 'Con buena señal GPS, Bristlecone la usa directamente y aprende en silencio la longitud de tu zancada a distintos ritmos y pendientes. Si se pierde el GPS, intenta la ubicación por Wi-Fi y red celular; luego cuenta tus pasos y sigue el rumbo de la brújula desde el último punto confiable, usando esa zancada aprendida. El círculo ámbar crece a medida que la estimación envejece. Tómala como guía y confírmala con puntos de referencia.',
-    'about.credits': 'Fuentes de datos y créditos', 'about.maker': 'Creado por H.M. Jackson.', 'about.version': 'Versión {v}',
+    'about.credits': 'Fuentes de datos y créditos', 'about.maker': 'Diseñado por Krummholz AI LLC.', 'about.version': 'Versión {v}',
     'about.privacy': 'Sin cuenta. Sin rastreo. Tu ubicación solo sale del teléfono como solicitudes de mapa a las fuentes públicas que aparecen aquí.',
 
     'note.1': 'Los pinos bristlecone pueden vivir más de 4,000 años en suelos delgados y rocosos.',

@@ -148,4 +148,4 @@ mkdir -p .sdk && cp <android-sdk>/platforms/android-34/android.jar .sdk/android-
 
 Map data © OpenStreetMap contributors (ODbL). OpenMapTiles, OpenFreeMap, USGS, NRCan (Open Government Licence Canada), ECCC, US Census Bureau, NPS, NWS, NIFC, Avalanche.org, Avalanche Canada, OpenBeta, OpenTopoMap (CC-BY-SA). MapLibre GL JS and maplibre-contour (BSD-3-Clause). Overpass and Cormorant Garamond (SIL OFL). NAIP (USGS), Sentinel-2 cloudless 2016 by EOX (contains modified Copernicus Sentinel data, CC BY-SA 4.0), Wikipedia, Wikimedia Commons (photos credited individually).
 
-Made by H.M. Jackson.
+Designed by Krummholz AI LLC.

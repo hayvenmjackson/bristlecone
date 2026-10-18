@@ -70,6 +70,12 @@ const allText = JSON.stringify(d);
 check(!/[\u2014\u2013]/.test(allText), 'no em or en dashes in strings');
 const banned = /\b(adventure|adventures|adventurous|aventure|aventura|explore|explorer|explorar|epic|journey|wanderlust|unleash|discover|découvr|descubr|conquer|off the beaten)\b/i;
 check(!banned.test(allText), 'no cliche marketing words' + (banned.test(allText) ? ': ' + allText.match(banned)[0] : ''));
+// House rule: app copy says "model" or "machine learning", never artificial intelligence. The company
+// name in the credit line is the only place the letters AI appear.
+const aiWords = /artificial intelligence|intelligence artificielle|inteligencia artificial|\b(AI|IA)\b|AI-(generated|powered|driven)/i;
+const aiText = allText.split('Krummholz AI LLC').join('');
+check(!aiWords.test(aiText), 'no artificial intelligence wording in app copy' + (aiWords.test(aiText) ? ': ' + aiText.match(aiWords)[0] : ''));
+check(allText.includes('Krummholz AI LLC'), 'credit line names Krummholz AI LLC');
 
 // 7. Country test used to pick imagery and report sources
 const cases = [['Cheyenne', -104.82, 41.14, 'us'], ['Banff', -115.57, 51.18, 'ca'], ['Toronto', -79.38, 43.65, 'ca'], ['Buffalo', -78.88, 42.89, 'us'],
