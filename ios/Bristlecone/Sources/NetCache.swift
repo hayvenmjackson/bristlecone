@@ -7,16 +7,23 @@ import CryptoKit
 ///
 ///  tile : map tiles, glyphs, TileJSON. Served from disk if younger than 30 days.
 ///  data : trail geometry, land boundaries, geocoding. Served from disk if younger than 7 days.
+///  forecast : forecast grids and station readings for mountain weather. Reused for 30 minutes.
 ///  live : trail reports, weather alerts, avalanche forecasts. Always fetched fresh when online;
 ///         the last copy is used only when offline, and the UI labels it with its age.
 enum CachePolicy {
-    enum Kind { case tile, data, live }
+    enum Kind { case tile, data, forecast, live }
 
     static let day: Double = 24 * 3600 * 1000
 
     static func classify(_ url: String) -> Kind {
         let u = url.lowercased()
         let h = host(u)
+        // Weather grid lookups and station lists change rarely; forecasts and readings hourly.
+        if h == "api.weather.gov" && (u.contains("/points/") || u.hasSuffix("/stations") || u.contains("/stations?")) { return .data }
+        if (h == "api.weather.gov" && (u.contains("/gridpoints/") || u.contains("/observations")))
+            || h == "geo.weather.gc.ca" || u.contains("/collections/swob-realtime/")
+            || (h == "wcc.sc.egov.usda.gov" && u.contains("/data?")) { return .forecast }
+        if h == "wcc.sc.egov.usda.gov" { return .data }
         if h == "api.weather.gov" || h == "api.weather.gc.ca"
             || (h == "developer.nps.gov" && u.contains("/alerts"))
             || h == "api.avalanche.org" || h == "api.avalanche.ca"
@@ -38,6 +45,7 @@ enum CachePolicy {
         switch k {
         case .tile: return 30 * day
         case .data: return 7 * day
+        case .forecast: return 30 * 60 * 1000
         case .live: return 0
         }
     }
@@ -68,7 +76,7 @@ enum CachePolicy {
 /// Local-first network layer. Every request the map and the page make goes through here, so
 /// tiles, trail data and reports are stored on the device and keep working with no signal.
 final class NetCache {
-    static let userAgent = "Bristlecone/1.2 (iOS trail map; public-data client)"
+    static let userAgent = "Bristlecone/1.4 (iOS trail map; public-data client)"
     private static let browseCacheCap: Int64 = 700 * 1024 * 1024
 
     struct Result {

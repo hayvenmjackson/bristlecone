@@ -97,7 +97,7 @@ public final class RegionManager {
                             long now = System.currentTimeMillis();
                             if (d == total || now - lastReport.get() > 400) {
                                 lastReport.set(now);
-                                report(manifest, d, failed.get(), bytes.get(), "downloading");
+                                report(manifest, d, failed.get(), bytes.get(), "downloading", false);
                             }
                             synchronized (lock) { lock.notifyAll(); }
                         }
@@ -113,21 +113,26 @@ public final class RegionManager {
                     try { Thread.sleep(200); } catch (InterruptedException ignored) { }
                 }
                 String state = cancel.get() ? "cancelled" : (failed.get() > 0 ? "partial" : "ready");
-                report(manifest, done.get(), failed.get(), bytes.get(), state);
                 cancels.remove(id);
-                if (cancel.get()) delete(id);
+                if (cancel.get()) {
+                    // Cancelled or deleted while downloading: never write the manifest back.
+                    removeManifest(id);
+                    report(manifest, done.get(), failed.get(), bytes.get(), state, false);
+                } else {
+                    report(manifest, done.get(), failed.get(), bytes.get(), state, true);
+                }
             }
         }, "region-" + id).start();
     }
 
-    private void report(JSONObject manifest, int done, int failed, long bytes, String state) {
+    private void report(JSONObject manifest, int done, int failed, long bytes, String state, boolean persist) {
         try {
             synchronized (manifest) {
                 manifest.put("done", done);
                 manifest.put("failed", failed);
                 manifest.put("bytes", bytes);
                 manifest.put("state", state);
-                if (!"downloading".equals(state)) save(manifest);
+                if (persist) save(manifest);
             }
             JSONObject s = new JSONObject();
             s.put("id", manifest.getString("id"));
@@ -147,7 +152,13 @@ public final class RegionManager {
         if (c != null) c.set(true);
     }
 
+    /** Deleting a region that is still downloading cancels it first, so it does not reappear. */
     public void delete(String id) {
+        cancel(id);
+        removeManifest(id);
+    }
+
+    private void removeManifest(String id) {
         //noinspection ResultOfMethodCallIgnored
         new File(dir, safe(id) + ".json").delete();
         refreshPins();
@@ -187,9 +198,13 @@ public final class RegionManager {
 
     private void save(JSONObject m) {
         try {
-            FileOutputStream o = new FileOutputStream(new File(dir, safe(m.getString("id")) + ".json"));
-            o.write(m.toString().getBytes("UTF-8"));
-            o.close();
+            File target = new File(dir, safe(m.getString("id")) + ".json");
+            File tmp = new File(dir, target.getName() + ".tmp");
+            try (FileOutputStream o = new FileOutputStream(tmp)) {
+                o.write(m.toString().getBytes("UTF-8"));
+            }
+            //noinspection ResultOfMethodCallIgnored
+            tmp.renameTo(target);
         } catch (Exception ignored) {
         }
     }

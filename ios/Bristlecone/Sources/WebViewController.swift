@@ -9,7 +9,7 @@ import LocalAuthentication
 /// flow the other way through window.bcNative, exactly as on Android.
 final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply, WKNavigationDelegate,
                                 UIDocumentPickerDelegate, MFMessageComposeViewControllerDelegate {
-    static let version = "1.3.0"
+    static let version = "1.4.0"
 
     private var web: WKWebView!
     private let root: URL
@@ -140,6 +140,11 @@ final class WebViewController: UIViewController, WKScriptMessageHandlerWithReply
 
     func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage,
                                replyHandler: @escaping (Any?, String?) -> Void) {
+        // Only the app's own page, in the main frame, may call native code. Any other frame or
+        // origin (should one ever load) gets nothing.
+        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == SchemeHandler.scheme else {
+            replyHandler(nil, "not allowed"); return
+        }
         guard let body = message.body as? [String: Any], let m = body["m"] as? String else { replyHandler(nil, "bad call"); return }
         let a = body["a"] as? [Any] ?? []
         func s(_ i: Int) -> String { i < a.count ? (a[i] as? String ?? (a[i] as? NSNumber)?.stringValue ?? "") : "" }

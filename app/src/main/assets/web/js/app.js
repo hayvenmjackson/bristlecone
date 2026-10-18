@@ -697,14 +697,17 @@
     // Weather, avalanche and report services only get a position rounded to about 1 km.
     const c = { lon: Math.round(exact.lon * 100) / 100, lat: Math.round(exact.lat * 100) / 100 };
     const html = head(t('cond.title'), esc(t('cond.near', { place: target && target.label ? target.label : t('cond.mapCenter') })) + ' · ' + esc(t('cond.newestFirst'))) +
-      '<div id="cond-list"><p class="read muted">' + esc(t('cond.loading')) + '</p></div>';
+      '<div id="wx-card"></div><div id="cond-list"><p class="read muted">' + esc(t('cond.loading')) + '</p></div>';
     const body = openSheet(html);
     const ctx = await placeContext(c.lon, c.lat);
     if (seq !== condSeq) return;
     if (ctx.label && !(target && target.label)) $('.sheet-head .sub', body).textContent = t('cond.near', { place: ctx.label }) + ' · ' + t('cond.newestFirst');
     setBusy(1);
     let res;
-    try { res = await BcReports.gather({ lon: c.lon, lat: c.lat, country: ctx.country, stateCode: ctx.stateCode, stateName: ctx.stateName, label: ctx.label, target: target && target.label, lang: S.lang, npsKey: S.npsKey, social: S.social }); }
+    const gathering = BcReports.gather({ lon: c.lon, lat: c.lat, country: ctx.country, stateCode: ctx.stateCode, stateName: ctx.stateName, label: ctx.label, target: target && target.label, lang: S.lang, npsKey: S.npsKey, social: S.social });
+    // The mountain weather estimate starts at once and uses the reports as they arrive.
+    if (window.BcWeather) BcWeather.render($('#wx-card', body), c, exact, Object.assign({ lang: S.lang }, ctx), gathering.then(r => r.items).catch(() => []));
+    try { res = await gathering; }
     finally { setBusy(-1); }
     if (seq !== condSeq || !$('#cond-list')) return;
     const list = $('#cond-list');
@@ -930,6 +933,7 @@
     html += '<p class="small muted">' + esc(t('appear.auto.d')) + ' ' + esc(t('appear.now', { mode: t(App.state.dark ? 'appear.dark' : 'appear.light'), sunset: fmtClock(sun.sunset) || '·', sunrise: fmtClock(sun.sunrise) || '·' })) + '</p>';
     html += '<h3 class="section">' + esc(t('set.units')) + '</h3>' + seg('units', [['imperial', t('units.imperial')], ['metric', t('units.metric')]], S.units);
     html += '<div style="margin-top:10px">' + toggleRow('keepAwake', t('set.keepAwake'), '', S.keepAwake) + '</div>';
+    html += toggleRow('wx', t('wx.setting'), t('wx.settingDesc'), S.wx !== false);
     const trim = S.shareTrim == null ? 200 : S.shareTrim;
     html += '<h3 class="section">' + esc(t('set.privacy')) + '</h3><div class="card"><div class="t-label">' + esc(t('trim.title')) + '</div><p class="small muted" style="margin:4px 0 8px">' + esc(t('trim.desc')) + '</p>' +
       seg('trim', [['0', t('trim.off')], ['200', fmtLen(200)], ['500', fmtLen(500)], ['1000', fmtLen(1000)]], String(trim)) +
@@ -966,6 +970,7 @@
       Native.authenticate(t('lock.title'), t('lock.reason'));
       authWait = new Promise(res => { authResolve = res; }).then(ok => { if (ok) { S.lock = want; saveSettings(); e.target.checked = want; } return ok; });
     };
+    $('[data-toggle="wx"]', body).onchange = (e) => { S.wx = e.target.checked; saveSettings(); };
     $('[data-toggle="keepAwake"]', body).onchange = (e) => { S.keepAwake = e.target.checked; saveSettings(); Native.keepScreenOn(S.keepAwake); };
     $('#s-backup', body).onclick = () => Native.isApp ? Native.backup($('[data-toggle="bkmaps"]', body).checked, 'bristlecone-backup-' + new Date().toISOString().slice(0, 10) + '.zip') : toast(t('common.needsApp'));
     $('#s-restore', body).onclick = () => Native.restore();

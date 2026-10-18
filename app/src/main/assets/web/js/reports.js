@@ -141,7 +141,7 @@
 
   function mine(ctx) {
     const list = (App.state.places || []).filter(p => p.type === 'report' && BcData.haversine([ctx.lon, ctx.lat], [p.lon, p.lat]) < 30000);
-    return { items: list.map(p => ({ src: 'mine', title: I18N.t('rep.' + (p.cat || 'other')) + (p.name ? ' · ' + p.name : ''), body: p.note || '', time: p.time, severity: p.cat === 'closure' ? 'closure' : '', coords: [p.lon, p.lat] })) };
+    return { items: list.map(p => ({ src: 'mine', title: I18N.t('rep.' + (p.cat || 'other')) + (p.name ? ' · ' + p.name : ''), body: p.note || '', time: p.time, severity: p.cat === 'closure' ? 'closure' : '', coords: [p.lon, p.lat], cat: p.cat })) };
   }
 
   // ------------------------------------------------------------------ Social: Mastodon-compatible servers

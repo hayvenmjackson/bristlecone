@@ -93,7 +93,12 @@ enum Zip {
         return out
     }
 
+    /// No real backup entry comes near this; one that claims to is damaged or hostile, and would
+    /// otherwise make the inflater allocate that much memory up front.
+    static let maxEntryBytes = 512 * 1024 * 1024
+
     static func read(_ z: Data, _ e: Entry) throws -> Data {
+        guard e.size >= 0, e.size <= maxEntryBytes, e.compressed >= 0 else { throw Failure(message: "backup entry too large") }
         let h = e.localOffset
         guard h + 30 <= z.count, z.u32(at: h) == 0x0403_4B50 else { throw Failure(message: "damaged zip file") }
         let start = h + 30 + Int(z.u16(at: h + 26)) + Int(z.u16(at: h + 28))

@@ -300,3 +300,24 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--in
 .replay-bar .close { flex: none; }
 .replay-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--gold); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,0.4); }
 .replaying .fabs { display: none; }
+
+/* Mountain weather estimate (Conditions tab) */
+.wx { margin-bottom: 14px; }
+.wx-badge { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: .75; }
+.wx-row { margin-top: 10px; }
+.wx-where { font-size: 13px; opacity: .75; }
+.wx-main { font-size: 22px; line-height: 1.2; }
+.wx-main b { font-weight: 700; }
+.wx-sub { font-size: 15px; }
+.wx-ladder { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+.wx-ladder th { text-align: left; font-weight: 600; font-size: 12px; opacity: .7; padding: 4px 6px; }
+.wx-ladder td { padding: 5px 6px; border-top: 1px solid rgba(127,127,127,.2); }
+.wx-ladder tr.wx-snow td:last-child, .wx-ladder tr.wx-freezing td:last-child { font-weight: 600; }
+.wx-ladder tr.wx-snow td { background: rgba(120,160,210,.12); }
+.wx-ladder tr.wx-mix td { background: rgba(120,160,210,.06); }
+.wx-ladder tr.wx-freezing td { background: rgba(200,120,60,.12); }
+.wx-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(127,127,127,.25); opacity: .85; }
+.wx-differs { color: #9a4a12; }
+:root[data-theme="dark"] .wx-differs { color: #E0A36A; }
+.wx-ladder td { border-top-color: var(--line); }
+.wx-note { border-top-color: var(--line); }

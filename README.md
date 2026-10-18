@@ -42,6 +42,7 @@ A free Apple ID signs apps for 7 days; AltStore refreshes them when the iPad and
 | Sharing | A 1080 x 1350 route card (map, stats, Bristlecone credit) and GPX through Android's share sheet: TikTok, Instagram, Facebook, X, LinkedIn, messaging, Strava or Garmin import, anything installed. "Text my location" opens messaging with your coordinates, accuracy (flagged when estimated) and a map link. |
 | Health Connect and Apple Health | Android 14 and newer: saves recorded hikes (exercise session with route, distance, elevation gained, steps) to Health Connect. iOS: saves a hiking workout with route, distance and elevation gained to Apple Health (steps are left out because the iPhone already counts them). Write only; the app never reads health data. |
 | Position | GPS first. If GPS drops out: Wi-Fi and cell location, then dead reckoning from the last good fix (step detector, compass with magnetic declination, barometer) using a stride model the phone learns from your own GPS walks (recursive least squares). Anything but GPS is shown in amber, labeled as an estimate, with a growing uncertainty circle and a prompt to confirm against landmarks. The dot is matched to the nearest trail when one is inside the circle. |
+| Mountain weather | Temperature (with a range), precipitation type, snow level, freezing level and wind estimated for your elevation and the highest ground nearby, on the Conditions tab. Built from the NWS forecast grid, nearby NWS stations and NRCS SNOTEL in the US, and ECCC's HRDPS forecast and SWOB stations in Canada, plus recent trail reports and terrain. A physical model (lapse rate from paired stations, wet-bulb temperature, a humidity-aware rain and snow split, terrain exposure for wind) with a learned correction trained on station data (`tools/weather/`). Always labeled as a model estimate; official forecasts and alerts stay alongside. Can be turned off in Settings. |
 | Reports | National Weather Service, Environment and Climate Change Canada, National Park Service alerts and closures, Avalanche.org, Avalanche Canada, NIFC wildfire perimeters, OpenStreetMap trail notes, trail reports from Mastodon-compatible servers (mastodon.social, noagendasocial.com and gab.com by default; editable in Settings), and your own field reports. Social posts pass an on-phone filter that keeps only first-hand condition reports; "Useful" and "Not a trail report" taps retrain it on the phone. Always sorted newest first and grouped by age. Saved copies are labeled with their age when offline. |
 | Offline | "Download this view" saves vector tiles, terrain, glyphs, trail data, land boundaries, hazards and a reports snapshot. Every request the map makes is also cached as you browse. Downloaded regions survive cache trimming and server tile updates. |
 | Export | Map image with a Bristlecone credit strip, and GPX of trails in view. |
@@ -93,6 +94,8 @@ app/src/main/assets/web/             UI (shared by both apps)
   js/style.js           Map style (all themes, units, bases)
   js/data.js            Trails, lands, climbing, fire, geocoding
   js/reports.js         Conditions and reports
+  js/weather.js         Mountain weather: sources, terrain, the card
+  js/wxmodel.js         Mountain weather model (weights in wxmodel-weights.js)
   js/offline.js         Region planning, GPX and image export
   js/icons.js           Map icons and highway shields
   js/record.js          Recording, activity kinds, route cards, Health Connect UI
@@ -107,6 +110,7 @@ branding/                            Mark and icon sources (SVG)
 tools/                               Build and test scripts
   classifier/           Seed data and trainer for the report filter
   fonts/                Glyph generator for map labels
+  weather/              Training and dataset tools for the mountain weather model
 ```
 
 ## Building
@@ -146,6 +150,6 @@ mkdir -p .sdk && cp <android-sdk>/platforms/android-34/android.jar .sdk/android-
 
 ## Credits
 
-Map data © OpenStreetMap contributors (ODbL). OpenMapTiles, OpenFreeMap, USGS, NRCan (Open Government Licence Canada), ECCC, US Census Bureau, NPS, NWS, NIFC, Avalanche.org, Avalanche Canada, OpenBeta, OpenTopoMap (CC-BY-SA). MapLibre GL JS and maplibre-contour (BSD-3-Clause). Overpass and Cormorant Garamond (SIL OFL). NAIP (USGS), Sentinel-2 cloudless 2016 by EOX (contains modified Copernicus Sentinel data, CC BY-SA 4.0), Wikipedia, Wikimedia Commons (photos credited individually).
+Map data © OpenStreetMap contributors (ODbL). OpenMapTiles, OpenFreeMap, USGS, NRCan (Open Government Licence Canada), ECCC (including HRDPS and SWOB), US Census Bureau, NPS, NWS, USDA NRCS SNOTEL, NIFC, Avalanche.org, Avalanche Canada, OpenBeta, OpenTopoMap (CC-BY-SA). MapLibre GL JS and maplibre-contour (BSD-3-Clause). Overpass and Cormorant Garamond (SIL OFL). NAIP (USGS), Sentinel-2 cloudless 2016 by EOX (contains modified Copernicus Sentinel data, CC BY-SA 4.0), Wikipedia, Wikimedia Commons (photos credited individually).
 
-Made by H.M. Jackson.
+Designed by Krummholz AI LLC.

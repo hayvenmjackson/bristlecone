@@ -28,14 +28,22 @@
   /** Metres left off each end of a shared route (Settings, Privacy). */
   const trimMetres = () => (U.settings.shareTrim == null ? 200 : Number(U.settings.shareTrim) || 0);
 
-  /** The route without its first and last `m` metres, or [] when too little would be left. */
+  /**
+   * The route without its first and last `m` metres, or [] when too little would be left.
+   * Two rules, both applied: `m` metres of path from each end, and every point within `m`
+   * metres in a straight line of the start or the end. Path distance alone is not enough: a
+   * route that circles a parking lot or doubles back past the driveway can be 200 m along the
+   * path yet still only a few metres from where it began.
+   */
   function trimEnds(pts, m) {
     if (!m || pts.length < 2) return pts;
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + BcData.haversine(pts[i - 1], pts[i]));
     const total = cum[cum.length - 1];
     if (total < m * 2 + Math.max(100, m)) return [];
-    return pts.filter((_, i) => cum[i] >= m && cum[i] <= total - m);
+    const a = pts[0], b = pts[pts.length - 1];
+    const out = pts.filter((p, i) => cum[i] >= m && cum[i] <= total - m && BcData.haversine(p, a) >= m && BcData.haversine(p, b) >= m);
+    return out.length < 2 ? [] : out;
   }
 
   /** The route as it may be shared, or null (with a note to the person) when trimming leaves nothing. */
