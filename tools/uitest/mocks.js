@@ -129,6 +129,24 @@ function mock(url, method, body) {
   if (u.hostname === 'services.arcgis.com') return json(padus);
   if (u.hostname === 'tigerweb.geo.census.gov') return json(u.pathname.includes('/2/') ? tribal : fc([]));
   if (u.hostname === 'services3.arcgis.com') return json(fire);
+  // Mountain weather: NWS grid, stations, SNOTEL (snowing over the Snowy Range).
+  if (u.hostname === 'api.weather.gov' && u.pathname.startsWith('/points/')) return json({ properties: { forecastGridData: 'https://api.weather.gov/gridpoints/CYS/10,20', observationStations: 'https://api.weather.gov/gridpoints/CYS/10,20/stations' } });
+  if (u.hostname === 'api.weather.gov' && u.pathname.endsWith('/stations')) return json(fc([
+    F({ stationIdentifier: 'KSAA', name: 'Saratoga', elevation: { unitCode: 'wmoUnit:m', value: 2139 } }, { type: 'Point', coordinates: P(0.47, 0.07) }),
+    F({ stationIdentifier: 'CENW4', name: 'Centennial', elevation: { unitCode: 'wmoUnit:m', value: 2470 } }, { type: 'Point', coordinates: P(0.13, -0.03) })]));
+  if (u.hostname === 'api.weather.gov' && u.pathname.includes('/observations/')) {
+    const cent = u.pathname.includes('CENW4');
+    return json({ properties: { timestamp: ago(0.3), temperature: { unitCode: 'wmoUnit:degC', value: cent ? 2.2 : 4.4 }, relativeHumidity: { value: 88 }, textDescription: cent ? 'Light Rain' : 'Cloudy', presentWeather: cent ? [{ weather: 'rain', intensity: 'light' }] : [] } });
+  }
+  if (u.hostname === 'api.weather.gov' && u.pathname.startsWith('/gridpoints/')) {
+    const v = (uom, value) => ({ uom, values: [{ validTime: new Date(Date.now() - 2 * 3600000).toISOString().replace('.000Z', '+00:00') + '/PT12H', value }] });
+    return json({ properties: { updateTime: ago(1), elevation: { unitCode: 'wmoUnit:m', value: 2900 }, temperature: v('wmoUnit:degC', -1.5), relativeHumidity: v('wmoUnit:percent', 92),
+      windSpeed: v('wmoUnit:km_h-1', 30), windGust: v('wmoUnit:km_h-1', 55), windDirection: v('wmoUnit:degree_(angle)', 260), skyCover: v('wmoUnit:percent', 100),
+      probabilityOfPrecipitation: v('wmoUnit:percent', 80), quantitativePrecipitation: v('wmoUnit:mm', 1.1), snowLevel: v('wmoUnit:m', 2600),
+      weather: v(null, [{ coverage: 'likely', weather: 'snow_showers', intensity: 'light' }]) } });
+  }
+  if (u.hostname === 'wcc.sc.egov.usda.gov' && u.pathname.endsWith('/stations')) return json([{ stationTriplet: '367:WY:SNTL', name: 'Brooklyn Lake', latitude: C[1] + 0.01, longitude: C[0] + 0.07, elevation: 10240 }]);
+  if (u.hostname === 'wcc.sc.egov.usda.gov' && u.pathname.endsWith('/data')) return json([{ stationTriplet: '367:WY:SNTL', data: [{ stationElement: { elementCode: 'TOBS' }, values: [{ date: new Date().toISOString().slice(0, 16).replace('T', ' '), value: 28.4 }] }] }]);
   if (u.hostname === 'api.weather.gov') return json(nws);
   if (u.hostname === 'api.openstreetmap.org') return json(notes);
   if (u.hostname === 'nominatim.openstreetmap.org') return json(u.pathname.includes('search') ? [{ name: 'Lake Marie', display_name: 'Lake Marie, Albany County, Wyoming, United States', lat: String(C[1] - 0.012), lon: String(C[0] + 0.02), boundingbox: [String(C[1] - 0.02), String(C[1]), String(C[0]), String(C[0] + 0.04)] }] : reverse);

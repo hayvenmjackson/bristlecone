@@ -36,6 +36,16 @@ public class LogicTest {
         check(CachePolicy.classify("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/10/1/2.png") == CachePolicy.Kind.TILE, "DEM is TILE");
         check(CachePolicy.classify("https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf") == CachePolicy.Kind.TILE, "glyphs TILE");
         check(CachePolicy.classify("https://api.weather.gov/alerts/active?point=1,2") == CachePolicy.Kind.LIVE, "NWS LIVE");
+        check(CachePolicy.classify("https://api.weather.gov/points/45.9044,-68.9213") == CachePolicy.Kind.DATA, "NWS point lookup DATA");
+        check(CachePolicy.classify("https://api.weather.gov/gridpoints/CAR/58,128") == CachePolicy.Kind.FORECAST, "NWS grid FORECAST");
+        check(CachePolicy.classify("https://api.weather.gov/gridpoints/CAR/58,128/stations") == CachePolicy.Kind.DATA, "NWS station list DATA");
+        check(CachePolicy.classify("https://api.weather.gov/stations/KMLT/observations/latest") == CachePolicy.Kind.FORECAST, "NWS observation FORECAST");
+        check(CachePolicy.classify("https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetFeatureInfo&LAYERS=HRDPS.CONTINENTAL_TT") == CachePolicy.Kind.FORECAST, "HRDPS FORECAST");
+        check(CachePolicy.classify("https://api.weather.gc.ca/collections/swob-realtime/items?f=json") == CachePolicy.Kind.FORECAST, "SWOB FORECAST");
+        check(CachePolicy.classify("https://api.weather.gc.ca/collections/weather-alerts/items?f=json") == CachePolicy.Kind.LIVE, "ECCC alerts still LIVE");
+        check(CachePolicy.classify("https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=x&elements=TOBS") == CachePolicy.Kind.FORECAST, "SNOTEL data FORECAST");
+        check(CachePolicy.classify("https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/stations?stationTriplets=*:WY:SNTL") == CachePolicy.Kind.DATA, "SNOTEL stations DATA");
+        check(CachePolicy.ttl(CachePolicy.Kind.FORECAST) == 30L * 60L * 1000L, "forecast reused for 30 minutes");
         check(CachePolicy.classify("https://developer.nps.gov/api/v1/alerts?parkCode=yell") == CachePolicy.Kind.LIVE, "NPS alerts LIVE");
         check(CachePolicy.classify("https://developer.nps.gov/api/v1/parks?stateCode=WY") == CachePolicy.Kind.DATA, "NPS parks DATA");
         check(CachePolicy.classify("https://overpass-api.de/api/interpreter?data=x") == CachePolicy.Kind.DATA, "Overpass DATA");

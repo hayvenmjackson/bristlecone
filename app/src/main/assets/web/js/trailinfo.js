@@ -497,5 +497,5 @@
     }
   }
 
-  window.BcTrail = { open, peek, enrichTrailhead, rate, chain, resample, profileStats, textLevel, naismithMs, nameMatches, build };
+  window.BcTrail = { open, peek, enrichTrailhead, rate, chain, resample, profileStats, textLevel, naismithMs, nameMatches, build, elevations };
 })();

@@ -156,5 +156,82 @@ check(trimmed.length > 10 && nearest >= 200, 'shared route keeps no point within
 const end = route[route.length - 1];
 check(Math.min(...trimmed.map(p => ctx.BcData.haversine(p, end))) >= 200, 'shared route keeps no point within 200 m of the end');
 check(ctx.BcRecord.trimEnds(route.slice(0, 21), 200).length === 0, 'a short loop around home shares nothing');
-console.log(fails ? fails + ' FAILED' : 'ALL PASS');
-process.exit(fails ? 1 : 0);
+
+// Mountain weather model
+['wxmodel-weights.js', 'wxmodel.js', 'weather.js'].forEach(f => vm.runInContext(fs.readFileSync(W + f, 'utf8'), ctx, { filename: f }));
+{
+  const X = ctx.BcWx, toF = (c) => c * 9 / 5 + 32, ftm = (f) => f * 0.3048;
+  // Millinocket about 350 ft: raining, 40 F, saturated. Baxter Peak 5,267 ft.
+  const s = { ref: { z: ftm(350), t: (40 - 32) * 5 / 9, rh: 95, windMs: 4, windDir: 270, gustMs: 7, sky: 100 }, precipChance: 0.9, hour: 13, month: 10, night: false, ageH: 0.5 };
+  const top = X.estimate(s, ftm(5267), null), low = X.estimate(s, ftm(350), null);
+  check(top.type === 'snow' && toF(top.t) > 20 && toF(top.t) < 30, 'Katahdin: rain at 40 F in Millinocket means snow on the summit (' + toF(top.t).toFixed(0) + ' F)');
+  check(low.type === 'rain' && Math.abs(toF(low.t) - 40) < 0.5, 'Katahdin: rain stays rain in town');
+  const snowFt = top.snowLevel / 0.3048;
+  check(snowFt > 1500 && snowFt < 3500, 'Katahdin: snow level between 1,500 and 3,500 ft (' + Math.round(snowFt) + ' ft)');
+  check(top.p10 < top.t && top.t < top.p90 && (top.t - top.p10) > (top.p90 - top.t), 'range brackets the estimate and leans cold');
+  check(X.estimate(s, ftm(5267), null).p90 - X.estimate(s, ftm(5267), null).p10 > low.p90 - low.p10, 'range widens with the climb');
+  // Wet bulb: 20 C at 50% RH is about 13.7 C (Stull 2011 worked example).
+  check(Math.abs(X.wetBulb(20, 50) - 13.7) < 0.2, 'wet-bulb temperature (Stull)');
+  // Dry air keeps snow alive above freezing; humid air turns it to rain.
+  check(X.pSnow(1.5, 45) > 0.8 && X.pSnow(1.5, 98) < 0.5, 'humidity changes the rain and snow line');
+  // Paired stations override the default lapse: an inversion (warmer up high) is detected.
+  const inv = X.lapseFor({ rh: 60, precipChance: 0, night: true, windMs: 1, sky: 10, hour: 4, paired: [{ z: 100, t: -8 }, { z: 1200, t: -2 }] });
+  check(inv.paired && inv.g > 0, 'paired stations detect an inversion');
+  // Terrain: a summit is exposed and speeds the wind; a hollow shelters it.
+  const peak = X.terrain([[1400, 1450, 1400], [1450, 1605, 1450], [1400, 1450, 1400]], 300);
+  const hollow = X.terrain([[1500, 1450, 1500], [1450, 1300, 1450], [1500, 1450, 1500]], 300);
+  const ref = { z: 1300, windMs: 8, windDir: 270, gustMs: 12 };
+  check(X.wind(ref, 1605, peak).p50 > X.wind(ref, 1300, hollow).p50 * 1.5 && X.wind(ref, 1605, peak).exposure === 'exposed', 'ridge and summit winds above hollow winds');
+  // Report reading
+  const r1 = X.readReport('Snowing hard above treeline, 28 degrees at the saddle', 'F');
+  check(r1 && r1.type === 'snow' && Math.abs(r1.t - (-2.22)) < 0.1, 'report: snow and 28 F read');
+  check(X.readReport('No snow on the trail, rain at the bottom', 'F').type === 'rain', 'report: "no snow" is not snow');
+  check(X.readReport('Il neige au sommet, -3 °C', 'C').type === 'snow', 'report: French snow');
+  check(X.readReport('Great views, bring water', 'F') === null, 'report: no weather, no evidence');
+  // A first-hand report of the type near this elevation beats the formula.
+  const rep = X.estimate(Object.assign({}, s, { reports: [{ type: 'rain', t: NaN, z: ftm(5200), w: 0.9 }] }), ftm(5267), null);
+  check(rep.type === 'rain' && rep.notes.includes('wx.why.reportType'), 'report of rain on the summit overrides');
+  // NWS grid parsing
+  const W2 = ctx.BcWeather, t0 = Date.parse('2026-10-18T12:00:00Z');
+  const el = { uom: 'wmoUnit:degC', values: [{ validTime: '2026-10-18T09:00:00+00:00/PT3H', value: 1 }, { validTime: '2026-10-18T12:00:00+00:00/PT2H', value: 4.4 }] };
+  check(W2.at(el, t0 + 3600000) === 4.4 && W2.span('2026-10-18T00:00:00+00:00/P1DT6H')[1] - W2.span('2026-10-18T00:00:00+00:00/P1DT6H')[0] === 30 * 3600000, 'NWS grid value at a time');
+  check(W2.typeOfWords(['rain_showers', 'snow']) === 'mix' && W2.typeOfWords(['freezing_rain']) === 'freezing' && W2.typeOfWords(['fog']) === null, 'NWS weather words to type');
+  // Trained trees evaluate as flat node arrays.
+  check(X.trees([[[0, 1.5, 1, 2, 0], [-1, 0, 0, 0, -0.4], [-1, 0, 0, 0, 0.6]]], [2]) === 0.6, 'residual trees evaluate');
+}
+
+// The whole estimate, end to end, with canned public data: US (NWS + SNOTEL) and Canada (HRDPS + SWOB).
+(async () => {
+  const W2 = ctx.BcWeather, now = Date.now(), iso = (ms) => new Date(ms).toISOString();
+  const valid = (v, uom) => ({ uom, values: [{ validTime: iso(now - 7200000).replace('.000Z', '+00:00') + '/PT12H', value: v }] });
+  const canned = (url) => {
+    const u = new URL(url);
+    if (u.pathname.startsWith('/points/')) return { properties: { forecastGridData: 'https://api.weather.gov/gridpoints/CAR/1,2', observationStations: 'https://api.weather.gov/gridpoints/CAR/1,2/stations' } };
+    if (u.pathname.endsWith('/stations') && u.hostname === 'api.weather.gov') return { features: [{ properties: { stationIdentifier: 'KMLT', name: 'Millinocket', elevation: { unitCode: 'wmoUnit:m', value: 123 } }, geometry: { coordinates: [-68.80, 45.82] } }] };
+    if (u.pathname.includes('/observations/')) return { properties: { timestamp: iso(now - 1200000), temperature: { unitCode: 'wmoUnit:degC', value: 4.4 }, presentWeather: [{ weather: 'rain' }] } };
+    if (u.pathname.startsWith('/gridpoints/')) return { properties: { updateTime: iso(now - 3600000), elevation: { unitCode: 'wmoUnit:m', value: 250 }, temperature: valid(3.5, 'wmoUnit:degC'), relativeHumidity: valid(95), windSpeed: valid(25, 'wmoUnit:km_h-1'), windDirection: valid(270), probabilityOfPrecipitation: valid(90), weather: valid([{ weather: 'rain' }]) } };
+    if (u.hostname === 'wcc.sc.egov.usda.gov') return [];
+    if (u.hostname === 'geo.weather.gc.ca') { const l = u.searchParams.get('LAYERS'); return { features: [{ properties: { value: { 'HRDPS.CONTINENTAL_TT': 3, 'HRDPS.CONTINENTAL_HR': 94, 'HRDPS.CONTINENTAL_UU': 30, 'HRDPS.CONTINENTAL_WD': 250 }[l] } }] }; }
+    if (u.pathname.includes('swob-realtime')) return { features: [{ id: 'a', geometry: { coordinates: [-115.57, 51.17] }, properties: { 'msc_id-value': '3031093', 'stn_nam-value': 'BANFF', 'date_tm-value': iso(now - 1800000), 'air_temp': 4.0, 'air_temp-uom': '°C', 'stn_elev-value': 1397, 'pcpn_amt_pst1hr': 0.6 } }] };
+    throw new Error('unexpected ' + url);
+  };
+  const realData = ctx.BcData.getJson;
+  ctx.BcData.getJson = async (url) => ({ json: canned(url), meta: { fetched: now, stale: false } });
+  // Terrain: a single 1,600 m summit 2 km east of a 300 m valley floor.
+  ctx.BcTrail = { elevations: async (pts) => pts.map(([lon, lat]) => 300 + 1300 * Math.exp(-(((lon - (BASE[0] + 0.025)) * 78000) ** 2 + ((lat - BASE[1]) * 111000) ** 2) / (900 ** 2))) };
+  ctx.Sun = { elevation: () => 20 };
+  let BASE = [-68.92, 45.90];
+  try {
+    const us = await W2.compute({ lon: BASE[0], lat: BASE[1] }, { lon: BASE[0], lat: BASE[1] }, { country: 'us', stateCode: 'ME', lang: 'en-US' }, Promise.resolve([]));
+    check(us.here && us.here.type === 'rain' && us.summit && us.summit.type === 'snow', 'US end to end: rain in the valley, snow on the summit (' + Math.round(us.summit.z * 3.28) + ' ft)');
+    check(us.data.src.includes('nws') && us.data.src.includes('stations') && us.s.bias, 'US end to end: grid, station and station correction used');
+    BASE = [-115.57, 51.18];
+    ctx.BcTrail.elevations = async (pts) => pts.map(([lon, lat]) => 1400 + 1500 * Math.exp(-(((lon - (BASE[0] + 0.025)) * 70000) ** 2 + ((lat - BASE[1]) * 111000) ** 2) / (900 ** 2)));
+    const ca = await W2.compute({ lon: BASE[0], lat: BASE[1] }, { lon: BASE[0], lat: BASE[1] }, { country: 'ca', lang: 'en-CA' }, Promise.resolve([{ src: 'mine', time: now - 3600000, title: 'Snow or ice', body: 'Snowing at the col', coords: [BASE[0] + 0.02, BASE[1]], cat: 'snow' }]));
+    check(ca.data.src.includes('hrdps') && ca.data.src.includes('swob') && ca.s.precipChance >= 0.85, 'Canada end to end: HRDPS and SWOB used, station precipitation seen');
+    check(ca.summit && ca.summit.type === 'snow' && ca.s.reports.length === 1, 'Canada end to end: snow up high, field report counted');
+  } catch (e) { check(false, 'weather end to end threw: ' + e.message); }
+  ctx.BcData.getJson = realData;
+  console.log(fails ? fails + ' FAILED' : 'ALL PASS');
+  process.exit(fails ? 1 : 0);
+})();

@@ -7,11 +7,13 @@ import java.security.MessageDigest;
  *
  *  TILE : map tiles, glyphs, TileJSON. Served from disk if younger than 30 days.
  *  DATA : trail geometry, land boundaries, geocoding. Served from disk if younger than 7 days.
+ *  FORECAST : forecast grids and station readings for mountain weather estimates. Reused for
+ *         30 minutes (they update hourly at most), then refetched; offline, the last copy is used.
  *  LIVE : trail reports, weather alerts, avalanche forecasts. Always fetched fresh when online;
  *         the last copy is used only when offline, and the UI labels it with its age.
  */
 public final class CachePolicy {
-    public enum Kind { TILE, DATA, LIVE }
+    public enum Kind { TILE, DATA, FORECAST, LIVE }
 
     public static final long DAY = 24L * 3600L * 1000L;
 
@@ -20,6 +22,12 @@ public final class CachePolicy {
     public static Kind classify(String url) {
         String u = url.toLowerCase();
         String host = host(u);
+        // Weather grid lookups and station lists change rarely; forecasts and readings hourly.
+        if (host.equals("api.weather.gov") && (u.contains("/points/") || u.endsWith("/stations") || u.contains("/stations?"))) return Kind.DATA;
+        if (host.equals("api.weather.gov") && (u.contains("/gridpoints/") || u.contains("/observations"))
+                || host.equals("geo.weather.gc.ca") || u.contains("/collections/swob-realtime/")
+                || host.equals("wcc.sc.egov.usda.gov") && u.contains("/data?")) return Kind.FORECAST;
+        if (host.equals("wcc.sc.egov.usda.gov")) return Kind.DATA;
         if (host.equals("api.weather.gov") || host.equals("api.weather.gc.ca")
                 || host.equals("developer.nps.gov") && u.contains("/alerts")
                 || host.equals("api.avalanche.org") || host.equals("api.avalanche.ca")
@@ -41,6 +49,7 @@ public final class CachePolicy {
         switch (k) {
             case TILE: return 30 * DAY;
             case DATA: return 7 * DAY;
+            case FORECAST: return 30L * 60L * 1000L;
             default: return 0;
         }
     }
