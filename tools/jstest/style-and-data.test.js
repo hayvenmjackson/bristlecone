@@ -231,6 +231,18 @@ check(ctx.BcRecord.trimEnds(route.slice(0, 21), 200).length === 0, 'a short loop
     check(ca.data.src.includes('hrdps') && ca.data.src.includes('swob') && ca.s.precipChance >= 0.85, 'Canada end to end: HRDPS and SWOB used, station precipitation seen');
     check(ca.summit && ca.summit.type === 'snow' && ca.s.reports.length === 1, 'Canada end to end: snow up high, field report counted');
   } catch (e) { check(false, 'weather end to end threw: ' + e.message); }
+    // Coastal Maine in January: snowing at 27 F at the shore. The card says snow reaches the sea.
+    BASE = [-68.21, 44.39];
+    const coast = (url) => { const j = canned(url); const p = j && j.properties;
+      if (p && p.temperature) { p.elevation.value = 5; p.temperature = valid(-2.8, 'wmoUnit:degC'); p.weather = valid([{ weather: 'snow' }]); }
+      return j; };
+    ctx.BcData.getJson = async (url) => ({ json: coast(url), meta: { fetched: now, stale: false } });
+    ctx.BcTrail.elevations = async (pts) => pts.map(([lon, lat]) => 5 + 460 * Math.exp(-(((lon - (BASE[0] + 0.02)) * 79000) ** 2 + ((lat - BASE[1]) * 111000) ** 2) / (900 ** 2)));
+    ctx.I18N.lang = 'en-US';
+    const el = { innerHTML: '', isConnected: true };
+    ctx.App = { ui: { t: ctx.I18N.t, esc: (x) => String(x), settings: {}, imperial: true, fmtEle: (m) => Math.round(m * 3.28084) + ' ft', ageText: () => 'just now' } };
+    await W2.render(el, { lon: BASE[0], lat: BASE[1] }, { lon: BASE[0], lat: BASE[1] }, { country: 'us', lang: 'en-US' }, Promise.resolve([]));
+    check(el.innerHTML.includes('Snow down to sea level.') && !/Snow level about -?0 ft/.test(el.innerHTML), 'coastal snow reads "Snow down to sea level", not "about 0 ft"');
   ctx.BcData.getJson = realData;
   console.log(fails ? fails + ' FAILED' : 'ALL PASS');
   process.exit(fails ? 1 : 0);
