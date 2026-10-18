@@ -311,8 +311,15 @@
     const e = r.here, hi = r.summit;
     const lines = [];
     const lvl = [];
-    if (isFinite(e.snowLevel)) lvl.push(t('wx.snowLevel', { ele: levelText(Math.max(0, e.snowLevel)) }));
-    if (isFinite(e.freezingLevel)) lvl.push(t('wx.freezingLevel', { ele: levelText(Math.max(0, e.freezingLevel)) }));
+    // A level at or below sea level is real (coastal Maine in January), not an error. Near the
+    // coast, say so plainly; well inland, a level far below the ground just means "everywhere here".
+    const level = (m, key) => {
+      if (!isFinite(m)) return;
+      if (m > 0) lvl.push(t(key, { ele: levelText(m) }));
+      else lvl.push(t(key + (r.hereZ != null && r.hereZ >= 600 ? 'Everywhere' : 'SeaLevel')));
+    };
+    level(e.snowLevel, 'wx.snowLevel');
+    level(e.freezingLevel, 'wx.freezingLevel');
     // The official forecast is for its own grid elevation; disagreeing there is worth saying.
     const off = r.official, gt = r.data.gridType;
     const differs = gt && off.type !== gt && !(off.type === 'mix' || gt === 'mix');
