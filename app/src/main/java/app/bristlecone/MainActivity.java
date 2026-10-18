@@ -278,20 +278,28 @@ public class MainActivity extends Activity {
         io.execute(new Runnable() {
             @Override public void run() {
                 try {
+                    // "wt", not "w": some document providers keep the old bytes past the new end
+                    // when a file is overwritten with "w", which corrupts a smaller backup zip.
                     if (requestCode == REQ_BACKUP) {
-                        OutputStream o = getContentResolver().openOutputStream(uri, "w");
+                        OutputStream o = getContentResolver().openOutputStream(uri, "wt");
+                        if (o == null) throw new java.io.IOException("could not open file");
                         int n = storage.backup(o, backupIncludeMaps);
                         fileResult(kind, true, n, null);
                     } else if (requestCode == REQ_RESTORE) {
-                        InputStream in = getContentResolver().openInputStream(uri);
-                        int n = storage.restore(in);
-                        regions.refreshPins();
-                        fileResult(kind, true, n, null);
-                    } else if (requestCode == REQ_EXPORT && pendingExport != null) {
-                        OutputStream o = getContentResolver().openOutputStream(uri, "w");
-                        o.write(pendingExport);
-                        o.close();
+                        try (InputStream in = getContentResolver().openInputStream(uri)) {
+                            if (in == null) throw new java.io.IOException("could not open file");
+                            int n = storage.restore(in);
+                            regions.refreshPins();
+                            fileResult(kind, true, n, null);
+                        }
+                    } else if (requestCode == REQ_EXPORT) {
+                        byte[] data = pendingExport;
                         pendingExport = null;
+                        if (data == null) { fileResult(kind, false, 0, "nothing to save"); return; }
+                        try (OutputStream o = getContentResolver().openOutputStream(uri, "wt")) {
+                            if (o == null) throw new java.io.IOException("could not open file");
+                            o.write(data);
+                        }
                         fileResult(kind, true, 1, null);
                     }
                 } catch (Exception e) {

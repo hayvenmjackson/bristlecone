@@ -22,6 +22,12 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
         guard let url = task.request.url else { task.didFailWithError(URLError(.badURL)); return }
         let s = url.absoluteString
         if s.hasPrefix(SchemeHandler.proxyPrefix) {
+            // The cache only stores GETs. Anything else would silently lose its method and body,
+            // so it is refused; such calls go to their https URL directly instead.
+            let method = (task.request.httpMethod ?? "GET").uppercased()
+            guard method == "GET" || method == "HEAD" else {
+                return finish(task, status: 405, type: "text/plain", body: Data("method not allowed".utf8))
+            }
             let rest = String(s.dropFirst(SchemeHandler.proxyPrefix.count))
             if rest.hasPrefix(SchemeHandler.appHost + "/") {
                 serveAsset(String(rest.dropFirst(SchemeHandler.appHost.count)), task)

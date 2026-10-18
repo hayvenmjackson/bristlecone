@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Bristlecone</title>
+<!-- Defense in depth: even if remote text (a report, a social post, a restored backup) ever got
+     past escaping, no inline script or event handler can run, and no frame can load. The page
+     itself only ever runs its own bundled scripts. Map tiles, data and photos still load from
+     any https source, and MapLibre's worker starts from a blob: URL. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' https: data: blob: bristlecone:; img-src 'self' https: data: blob: bristlecone:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="stylesheet" href="lib/maplibre-gl.css">
 <link rel="stylesheet" href="css/app.css">
 </head>

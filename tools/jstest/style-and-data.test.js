@@ -123,5 +123,32 @@ const model = new RF.Model(ctx.BcReportModel.w, ctx.BcReportModel.b);
 check(model.score('Trail is icy above treeline this morning, microspikes needed.') > 0.8 && model.score('Huge sale on tents, 30% off with code TRAIL') < 0.2 && model.score('The senator voted against the parks bill.') < 0.2, 'report filter separates reports from ads and politics');
 check(ctx.BcReports.socialTags({ target: 'Precipice Trail', label: 'Bar Harbor', stateName: 'Maine' }).join(',') === 'PrecipiceTrail,Precipice,BarHarbor,Maine', 'social hashtags built from place names');
 check(ctx.BcIcons && ctx.BcIcons.cleanRef('us-interstate', 'I 80') === '80' && ctx.BcIcons.cleanRef('us-highway', 'US 287') === '287', 'route shield ref cleanup');
+
+// Privacy trimming of shared routes: path distance AND straight-line distance from each end.
+ctx.Native = { kvGet: () => null };
+{
+  // record.js builds its buttons when it loads; a do-nothing element is enough for that.
+  const el = () => new Proxy({ style: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, dataset: {} },
+    { get: (o, k) => (k in o ? o[k] : (k === 'querySelector' ? () => null : k === 'querySelectorAll' ? () => [] : () => el())) , set: (o, k, v) => { o[k] = v; return true; } });
+  ctx.App = { ui: { t: (k) => k, esc: (x) => String(x), $: () => el(), $$: () => [], settings: {} } };
+  const doc = ctx.document, make = doc.createElement;
+  doc.createElement = () => el();
+  const body = doc.body; doc.body = el();
+  try { vm.runInContext(fs.readFileSync(W + 'record.js', 'utf8'), ctx, { filename: 'record.js' }); }
+  finally { doc.createElement = make; doc.body = body; }
+}
+const dLat = (m) => m / 111320;
+const home = [-68.77, 44.80];
+// Starts at home, circles the block (about 300 m of path, never more than 60 m from home), then walks 2 km north and back east.
+const route = [];
+for (let i = 0; i <= 20; i++) { const a = i / 20 * 2 * Math.PI; route.push([home[0] + Math.cos(a) * dLat(60) / Math.cos(44.8 * Math.PI / 180) - dLat(60) / Math.cos(44.8 * Math.PI / 180), home[1] + Math.sin(a) * dLat(60)]); }
+for (let i = 1; i <= 40; i++) route.push([home[0], home[1] + dLat(50 * i)]);
+for (let i = 1; i <= 20; i++) route.push([home[0] + dLat(50 * i), home[1] + dLat(2000)]);
+const trimmed = ctx.BcRecord.trimEnds(route, 200);
+const nearest = Math.min(...trimmed.map(p => ctx.BcData.haversine(p, home)));
+check(trimmed.length > 10 && nearest >= 200, 'shared route keeps no point within 200 m of the start, even after a loop near home (nearest ' + Math.round(nearest) + ' m)');
+const end = route[route.length - 1];
+check(Math.min(...trimmed.map(p => ctx.BcData.haversine(p, end))) >= 200, 'shared route keeps no point within 200 m of the end');
+check(ctx.BcRecord.trimEnds(route.slice(0, 21), 200).length === 0, 'a short loop around home shares nothing');
 console.log(fails ? fails + ' FAILED' : 'ALL PASS');
 process.exit(fails ? 1 : 0);

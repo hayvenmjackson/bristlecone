@@ -70,8 +70,8 @@ public class TrackService extends Service implements LocationListener, SensorEve
         if (intent != null && intent.hasExtra("title")) title = intent.getStringExtra("title");
         if (intent != null && intent.hasExtra("text")) text = intent.getStringExtra("text");
         if (ACTION_START.equals(action)) start();
-        else if (ACTION_PAUSE.equals(action)) { paused = true; notifyNow(); }
-        else if (ACTION_RESUME.equals(action)) { paused = false; notifyNow(); }
+        else if (ACTION_PAUSE.equals(action)) { if (currentId != null) { paused = true; persist(); notifyNow(); } }
+        else if (ACTION_RESUME.equals(action)) { if (currentId != null) { paused = false; persist(); notifyNow(); } }
         else if (ACTION_STOP.equals(action)) stop();
         else if (currentId == null && !recover()) stopSelf();
         return START_STICKY;
@@ -86,7 +86,8 @@ public class TrackService extends Service implements LocationListener, SensorEve
         paused = false;
         lastLat = Double.NaN; lastLon = Double.NaN;
         activity = Activities.clean(activity);
-        getSharedPreferences("track", MODE_PRIVATE).edit().putString("recording", currentId).putString("activity", activity).apply();
+        getSharedPreferences("track", MODE_PRIVATE).edit().putString("recording", currentId).putString("activity", activity)
+                .putBoolean("paused", false).putInt("steps", 0).apply();
         listen();
     }
 
@@ -108,9 +109,15 @@ public class TrackService extends Service implements LocationListener, SensorEve
         }
         stats = s;
         currentId = id;
-        paused = false;
+        // Pause state and the step count survive Android stopping the app mid-hike.
+        paused = getSharedPreferences("track", MODE_PRIVATE).getBoolean("paused", false);
+        steps = getSharedPreferences("track", MODE_PRIVATE).getInt("steps", 0);
         listen();
         return true;
+    }
+
+    private void persist() {
+        getSharedPreferences("track", MODE_PRIVATE).edit().putBoolean("paused", paused).putInt("steps", steps).apply();
     }
 
     private void goForeground() {
@@ -162,7 +169,7 @@ public class TrackService extends Service implements LocationListener, SensorEve
         if (id != null && s != null && s.points() > 1) store.writeMeta(summary(id, s, Activities.countsSteps(activity) ? steps : 0, null));
         else if (id != null) store.delete(id);
         currentId = null;
-        getSharedPreferences("track", MODE_PRIVATE).edit().remove("recording").apply();
+        getSharedPreferences("track", MODE_PRIVATE).edit().remove("recording").remove("paused").remove("steps").apply();
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
@@ -203,7 +210,9 @@ public class TrackService extends Service implements LocationListener, SensorEve
     }
 
     @Override public void onSensorChanged(SensorEvent e) {
-        if (e.sensor.getType() == Sensor.TYPE_STEP_DETECTOR) { if (!paused) steps++; }
+        if (e.sensor.getType() == Sensor.TYPE_STEP_DETECTOR) {
+            if (!paused && currentId != null) { steps++; if (steps % 50 == 0) persist(); }
+        }
         else if (e.sensor.getType() == Sensor.TYPE_PRESSURE) {
             double a = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, e.values[0]);
             baroAlt = Double.isNaN(baroAlt) ? a : 0.8 * baroAlt + 0.2 * a;

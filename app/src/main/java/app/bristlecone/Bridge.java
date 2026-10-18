@@ -28,7 +28,7 @@ public final class Bridge {
             JSONObject o = new JSONObject();
             Locale l = Locale.getDefault();
             o.put("locale", l.getLanguage() + "-" + l.getCountry());
-            o.put("version", "1.3.0");
+            o.put("version", "1.4.0");
             o.put("health", HealthSync.available(a));
             o.put("lock", a.canLock());
             o.put("healthGranted", HealthSync.granted(a));

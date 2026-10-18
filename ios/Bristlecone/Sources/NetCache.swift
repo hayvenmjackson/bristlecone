@@ -68,7 +68,7 @@ enum CachePolicy {
 /// Local-first network layer. Every request the map and the page make goes through here, so
 /// tiles, trail data and reports are stored on the device and keep working with no signal.
 final class NetCache {
-    static let userAgent = "Bristlecone/1.2 (iOS trail map; public-data client)"
+    static let userAgent = "Bristlecone/1.4 (iOS trail map; public-data client)"
     private static let browseCacheCap: Int64 = 700 * 1024 * 1024
 
     struct Result {

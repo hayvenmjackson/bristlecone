@@ -22,6 +22,10 @@ import java.util.zip.ZipOutputStream;
 public final class Storage {
     private final File kvDir;
     private final File root;
+    /** No real backup file comes near this; a zip entry that does is damaged or hostile. */
+    static final long MAX_ENTRY_BYTES = 512L * 1024 * 1024;
+    /** A restore stops rather than leave the phone with less than this. */
+    static final long MIN_FREE_BYTES = 200L * 1024 * 1024;
 
     public Storage(Context ctx) {
         root = ctx.getFilesDir();
@@ -122,6 +126,7 @@ public final class Storage {
     public int restore(InputStream in) throws IOException {
         ZipInputStream zi = new ZipInputStream(in);
         int n = 0;
+        long written = 0;
         boolean valid = false;
         byte[] buf = new byte[32768];
         try {
@@ -138,14 +143,34 @@ public final class Storage {
                 else if (name.startsWith("cache/")) folder = "cache";
                 else continue;
                 String file = name.substring(folder.length() + 1);
-                if (file.contains("/") || file.isEmpty()) continue;
+                if (file.contains("/") || file.contains("\\") || file.isEmpty() || file.startsWith(".")) continue;
                 File dir = new File(root, folder);
                 //noinspection ResultOfMethodCallIgnored
                 dir.mkdirs();
-                FileOutputStream o = new FileOutputStream(new File(dir, file));
-                int r;
-                while ((r = zi.read(buf)) > 0) o.write(buf, 0, r);
-                o.close();
+                // Each file goes through a temporary name, so a damaged or oversized entry never
+                // replaces good data, and a backup that would fill the phone stops early.
+                File target = new File(dir, file);
+                File tmp = new File(dir, file + ".restore.tmp");
+                long size = 0;
+                try (FileOutputStream o = new FileOutputStream(tmp)) {
+                    int r;
+                    while ((r = zi.read(buf)) > 0) {
+                        size += r;
+                        written += r;
+                        if (size > MAX_ENTRY_BYTES) throw new IOException("backup entry too large: " + name);
+                        if (written % (8L * 1024 * 1024) < r && root.getUsableSpace() < MIN_FREE_BYTES) throw new IOException("not enough free space");
+                        o.write(buf, 0, r);
+                    }
+                } catch (IOException ex) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tmp.delete();
+                    throw ex;
+                }
+                if (!tmp.renameTo(target)) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tmp.delete();
+                    throw new IOException("could not write " + name);
+                }
                 n++;
             }
         } finally {

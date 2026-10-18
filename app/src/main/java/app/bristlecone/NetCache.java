@@ -34,8 +34,10 @@ import java.util.Set;
  */
 public final class NetCache {
     public static final String APP_HOST = "app.bristlecone.local";
-    public static final String USER_AGENT = "Bristlecone/1.0 (Android trail map; public-data client)";
+    public static final String USER_AGENT = "Bristlecone/1.4 (Android trail map; public-data client)";
     private static final long BROWSE_CACHE_CAP = 700L * 1024 * 1024;
+    /** Larger responses are refused rather than read into memory (no map request comes close). */
+    static final int MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 
     private final Context ctx;
     private final File dir;
@@ -189,7 +191,7 @@ public final class NetCache {
             String ct = c.getContentType();
             if (ct != null) r.contentType = ct;
             InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
-            r.body = in == null ? new byte[0] : readAll(in);
+            r.body = in == null ? new byte[0] : readAll(in, MAX_RESPONSE_BYTES);
             r.fetchedAt = System.currentTimeMillis();
             return r;
         } finally {
@@ -215,23 +217,29 @@ public final class NetCache {
         }
     }
 
+    /**
+     * Body first, then metadata, each through a temporary file and a rename. If anything fails
+     * part way, the metadata still describes the old body, so an old copy is never served as new.
+     */
     private void write(File body, File meta, String url, Result r) {
+        String suffix = "." + Thread.currentThread().getId() + "." + System.nanoTime() + ".tmp";
+        File tmp = new File(body.getPath() + suffix);
+        File mtmp = new File(meta.getPath() + suffix);
         try {
-            File tmp = new File(body.getPath() + "." + Thread.currentThread().getId() + "." + System.nanoTime() + ".tmp");
-            FileOutputStream fo = new FileOutputStream(tmp);
-            fo.write(r.body);
-            fo.close();
+            try (FileOutputStream fo = new FileOutputStream(tmp)) { fo.write(r.body); }
             JSONObject m = new JSONObject();
             m.put("url", url);
             m.put("status", r.status);
             m.put("type", r.contentType);
             m.put("t", r.fetchedAt);
-            FileOutputStream mo = new FileOutputStream(meta);
-            mo.write(m.toString().getBytes("UTF-8"));
-            mo.close();
-            //noinspection ResultOfMethodCallIgnored
-            tmp.renameTo(body);
+            try (FileOutputStream mo = new FileOutputStream(mtmp)) { mo.write(m.toString().getBytes("UTF-8")); }
+            if (!tmp.renameTo(body)) throw new IOException("rename");
+            if (!mtmp.renameTo(meta)) throw new IOException("rename");
         } catch (Exception ignored) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            //noinspection ResultOfMethodCallIgnored
+            mtmp.delete();
         }
     }
 
@@ -322,11 +330,18 @@ public final class NetCache {
     // ------------------------------------------------------------------ Utils
 
     public static byte[] readAll(InputStream in) throws IOException {
+        return readAll(in, Integer.MAX_VALUE - 16);
+    }
+
+    public static byte[] readAll(InputStream in, int limit) throws IOException {
         try {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();
             byte[] buf = new byte[16384];
             int n;
-            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            while ((n = in.read(buf)) > 0) {
+                if (bo.size() + n > limit) throw new IOException("response too large");
+                bo.write(buf, 0, n);
+            }
             return bo.toByteArray();
         } finally {
             in.close();
