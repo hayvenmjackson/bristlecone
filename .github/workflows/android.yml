@@ -27,10 +27,62 @@ jobs:
           node tools/jstest/weather-learned.test.js
           node tools/jstest/weather-trained.test.js
           node tools/jstest/weather-integration.test.js
+      - name: Restore stable beta signing key
+        id: beta_signing
+        if: github.event_name == 'release'
+        env:
+          BRISTLECONE_BETA_KEYSTORE_B64: ${{ secrets.BRISTLECONE_BETA_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BRISTLECONE_BETA_KEYSTORE_B64:-}" ]; then
+            echo "::error::Public beta releases require the persistent signing-key secret."
+            exit 1
+          fi
+          umask 077
+          mkdir -p "$HOME/.android"
+          if [ -e "$HOME/.android/debug.keystore" ] || [ -L "$HOME/.android/debug.keystore" ]; then
+            echo "::error::Refusing to overwrite a pre-existing runner debug keystore."
+            exit 1
+          fi
+          echo "restored=true" >> "$GITHUB_OUTPUT"
+          printf '%s' "$BRISTLECONE_BETA_KEYSTORE_B64" | base64 --decode > "$HOME/.android/debug.keystore"
+          test -s "$HOME/.android/debug.keystore"
+          certificate_sha256=$(keytool -exportcert -alias androiddebugkey -keystore "$HOME/.android/debug.keystore" -storepass android | sha256sum | cut -d ' ' -f 1)
+          if [ "$certificate_sha256" != "0ecac4dde2389f7daae0c33b964deb191dae1d23735ca9dba2b64a99f1af623d" ]; then
+            echo "::error::The beta signing certificate does not match the pinned public fingerprint."
+            exit 1
+          fi
+          echo "Verified beta certificate SHA-256: $certificate_sha256"
       - name: Build
         run: |
+          if [ "$GITHUB_EVENT_NAME" != "release" ]; then
+            echo "::notice::Non-release builds use an ephemeral debug key and are not an upgrade channel."
+          fi
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
+      - name: Remove restored signing key
+        if: always() && steps.beta_signing.outputs.restored == 'true'
+        run: rm -f -- "$HOME/.android/debug.keystore"
+      - name: Verify published APK signing identity
+        if: github.event_name == 'release'
+        run: |
+          set -euo pipefail
+          apksigner_path=
+          for candidate in "${ANDROID_HOME:?}/build-tools/"*/apksigner; do
+            if [ -x "$candidate" ]; then apksigner_path=$candidate; fi
+          done
+          test -n "$apksigner_path"
+          apk_files=(app/build/outputs/apk/debug/*.apk)
+          test "${#apk_files[@]}" -eq 1
+          test -f "${apk_files[0]}"
+          signer_output=$("$apksigner_path" verify --print-certs "${apk_files[0]}")
+          signer_count=$(printf '%s\n' "$signer_output" | grep -c -E '^Signer #[0-9]+ certificate SHA-256 digest:')
+          certificate_sha256=$(printf '%s\n' "$signer_output" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ "$signer_count" -ne 1 ] || [ "$certificate_sha256" != "0ecac4dde2389f7daae0c33b964deb191dae1d23735ca9dba2b64a99f1af623d" ]; then
+            echo "::error::The built APK does not have the pinned beta signing identity."
+            exit 1
+          fi
+          echo "Verified APK beta certificate SHA-256: $certificate_sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: Bristlecone-android

@@ -12,6 +12,10 @@ SDK_JAVA=${ANDROID_JAR_34:-$SDK}
 BT=${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}
 OUT=build/apk
 SRC=app/src/main
+# Development builds share release version metadata, but use their own local key.
+VERSION_CODE=$(sed -n 's/^[[:space:]]*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts)
+VERSION_NAME=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts)
+test -n "$VERSION_CODE" && test -n "$VERSION_NAME"
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/dex"
 
 echo "== resources"
@@ -20,7 +24,7 @@ sed 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<ma
   "$SRC/AndroidManifest.xml" > "$OUT/AndroidManifest.xml"
 aapt package -f -m -J "$OUT/gen" -M "$OUT/AndroidManifest.xml" -S "$SRC/res" -I "$SDK" \
   -A "$SRC/assets" -F "$OUT/unsigned.apk" --min-sdk-version 26 --target-sdk-version 34 \
-  --version-code 6 --version-name 1.4.0 -0 woff2 -0 pbf
+  --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" -0 woff2 -0 pbf
 
 echo "== java"
 find "$SRC/java" "$OUT/gen" -name '*.java' > "$OUT/sources.txt"
