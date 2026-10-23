@@ -120,11 +120,41 @@ jobs:
         env:
           PUBLISH_RELEASE: ${{ steps.source.outputs.publish }}
         run: |
-          if [ "$PUBLISH_RELEASE" != "true" ]; then
+          set -euo pipefail
+          chmod +x gradlew
+          signing_options=()
+          if [ "$PUBLISH_RELEASE" = "true" ]; then
+            keystore_path="$HOME/.android/debug.keystore"
+            test -s "$keystore_path"
+            # AGP can resolve its default key through Android/XDG preferences instead of HOME.
+            # These supported project properties bind both report and build to the restored key.
+            signing_options=(
+              "-Pandroid.injected.signing.store.file=$keystore_path"
+              "-Pandroid.injected.signing.store.password=android"
+              "-Pandroid.injected.signing.key.alias=androiddebugkey"
+              "-Pandroid.injected.signing.key.password=android"
+              "-Pandroid.injected.signing.store.type=JKS"
+            )
+            if signing_report=$(./gradlew --no-daemon --console=plain "${signing_options[@]}" :app:signingReport 2>&1); then
+              report_status=0
+            else
+              report_status=$?
+            fi
+            printf '%s\n' "$signing_report"
+            test "$report_status" -eq 0
+            debug_report=$(printf '%s\n' "$signing_report" | tr -d '\r' | awk '/^Variant: / { selected=($0 == "Variant: debug") } selected { print }')
+            reported_store=$(printf '%s\n' "$debug_report" | sed -n 's/^Store: //p')
+            reported_alias=$(printf '%s\n' "$debug_report" | sed -n 's/^Alias: //p')
+            reported_sha256=$(printf '%s\n' "$debug_report" | sed -n 's/^SHA-256: //p' | tr -d ':' | tr 'A-F' 'a-f')
+            if [ "$reported_store" != "$keystore_path" ] || [ "$reported_alias" != "androiddebugkey" ] || [ "$reported_sha256" != "0ecac4dde2389f7daae0c33b964deb191dae1d23735ca9dba2b64a99f1af623d" ]; then
+              echo "::error::Gradle did not select the restored beta signing key for the debug variant."
+              exit 1
+            fi
+            echo "Verified Gradle debug signing configuration uses the restored beta key."
+          else
             echo "::notice::Non-release builds use an ephemeral debug key and are not an upgrade channel."
           fi
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon --console=plain "${signing_options[@]}" assembleDebug
       - name: Remove restored signing key
         if: always() && steps.beta_signing.outputs.restored == 'true'
         run: rm -f -- "$HOME/.android/debug.keystore"
