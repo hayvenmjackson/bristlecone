@@ -225,6 +225,7 @@ check(ctx.BcRecord.trimEnds(route.slice(0, 21), 200).length === 0, 'a short loop
     const us = await W2.compute({ lon: BASE[0], lat: BASE[1] }, { lon: BASE[0], lat: BASE[1] }, { country: 'us', stateCode: 'ME', lang: 'en-US' }, Promise.resolve([]));
     check(us.here && us.here.type === 'rain' && us.summit && us.summit.type === 'snow', 'US end to end: rain in the valley, snow on the summit (' + Math.round(us.summit.z * 3.28) + ' ft)');
     check(us.data.src.includes('nws') && us.data.src.includes('stations') && us.s.bias, 'US end to end: grid, station and station correction used');
+    check(us.s.ageH >= 1 && us.s.ageH < 1.1, 'a freshly fetched forecast keeps its one-hour issue age');
     BASE = [-115.57, 51.18];
     ctx.BcTrail.elevations = async (pts) => pts.map(([lon, lat]) => 1400 + 1500 * Math.exp(-(((lon - (BASE[0] + 0.025)) * 70000) ** 2 + ((lat - BASE[1]) * 111000) ** 2) / (900 ** 2)));
     const ca = await W2.compute({ lon: BASE[0], lat: BASE[1] }, { lon: BASE[0], lat: BASE[1] }, { country: 'ca', lang: 'en-CA' }, Promise.resolve([{ src: 'mine', time: now - 3600000, title: 'Snow or ice', body: 'Snowing at the col', coords: [BASE[0] + 0.02, BASE[1]], cat: 'snow' }]));

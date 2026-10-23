@@ -222,7 +222,9 @@
     const s = {
       ref: data.ref, paired: data.obs.map(o => ({ z: o.z, t: o.t })), precipChance: data.precipChance, gridType: data.gridType,
       snowLevel: data.snowLevel, hour, month: new Date(now).getUTCMonth() + 1, night: sunEl < -4,
-      ageH: data.stale ? Math.max(1, (now - (data.updated || now)) / HOUR) : 0.5
+      // A newly fetched forecast can still have an old issue time. Its uncertainty
+      // must use that issue age, rather than resetting to half an hour on every fetch.
+      ageH: data.updated ? Math.max(0, (now - data.updated) / HOUR) : (data.stale ? 1 : 0.5)
     };
     if (data.obs.some(o => o.precip && o.d < 25000)) s.precipChance = Math.max(s.precipChance, 0.85);
 

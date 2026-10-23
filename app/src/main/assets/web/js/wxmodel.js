@@ -151,6 +151,27 @@
     return W().features.map(k => (k in f ? f[k] : 0));
   }
 
+  /** Apply a bundled correction only inside the training support. The pilot has
+   * no station-bias or paired-station examples, so those richer physical estimates
+   * keep their existing correction rather than counting a forecast bias twice. */
+  function residuals(s, x, ter) {
+    const w = W(), support = w.support;
+    const empty = { p10: 0, p50: 0, p90: 0, applied: false };
+    if (!w.temp || !w.temp.p50 || !w.temp.p50.length || !x.every(Number.isFinite)) return empty;
+    if (support) {
+      if (!support.sources.includes(s.ref.src) || (support.requiresTerrain && !ter)
+        || (support.withoutStationAdjustment && ((s.paired || []).length || (s.bias && s.bias.w > 0)))) return empty;
+      const targetElevation = s.ref.z + x[w.features.indexOf('dz_km')] * KM;
+      for (const [value, range] of [[s.ref.t, support.referenceTemperatureC], [targetElevation, support.targetElevationM]]) {
+        if (range && (!Number.isFinite(value) || value < range[0] - 1e-3 || value > range[1] + 1e-3)) return empty;
+      }
+      if (support.bounds.length !== x.length || x.some((v, i) => v < support.bounds[i][0] - 1e-6 || v > support.bounds[i][1] + 1e-6)) return empty;
+    }
+    const p50 = trees(w.temp.p50, x), low = trees(w.temp.p10, x), high = trees(w.temp.p90, x);
+    if (![p50, low, high].every(Number.isFinite)) return empty;
+    return { p10: Math.min(p50, low), p50, p90: Math.max(p50, high), applied: true };
+  }
+
   // ------------------------------------------------------------------ The estimate
   /**
    * s: {
@@ -172,25 +193,38 @@
 
     // Learned residual (median and spread).
     const x = features(Object.assign({}, s, { rh: ref.rh, windMs: ref.windMs, sky: ref.sky }), dzKm, lapse, ter);
-    const wq = W().temp;
-    t += trees(wq.p50, x);
+    const correction = residuals(s, x, ter);
+    const medianCorrection = correction.p50;
+    t += medianCorrection;
+    const columnTemperature = (z) => {
+      const dz = (z - ref.z) / KM;
+      const columnFeatures = features(Object.assign({}, s, { rh: ref.rh, windMs: ref.windMs, sky: ref.sky }), dz, lapse, ter);
+      return ref.t + lapse.g * dz + (s.bias && isFinite(s.bias.t) ? s.bias.t * Math.max(0, Math.min(0.8, s.bias.w)) : 0)
+        + residuals(s, columnFeatures, ter).p50;
+    };
 
     // Trail reports that give a temperature at a known elevation pull the estimate toward them.
     const notes = [];
     let pull = 0, pullW = 0;
     (s.reports || []).forEach(r => {
-      if (!isFinite(r.t) || !isFinite(r.z)) return;
-      const modelAtR = ref.t + lapse.g * (r.z - ref.z) / KM;
+      if (!Number.isFinite(r.t) || !Number.isFinite(r.z)) return;
+      const modelAtR = columnTemperature(r.z);
       pull += (r.t - modelAtR) * r.w; pullW += r.w;
     });
-    if (pullW > 0) { const w = Math.min(0.5, pullW); t += (pull / pullW) * w; notes.push('wx.why.reportTemp'); }
+    const reportAdjustment = pullW > 0 ? (pull / pullW) * Math.min(0.5, pullW) : 0;
+    if (pullW > 0) { t += reportAdjustment; notes.push('wx.why.reportTemp'); }
 
     // Spread: base error, lapse uncertainty over the climb, forecast age; reports and paired
     // stations tighten it. Cold side wider: underestimating cold hurts more on a mountain.
     let sigma = Math.sqrt(1.1 ** 2 + (lapse.sigma * Math.abs(dzKm)) ** 2 + (0.25 * Math.max(0, s.ageH || 0)) ** 2);
     if (pullW > 0) sigma *= 0.85;
-    const lo10 = trees(wq.p10, x), hi90 = trees(wq.p90, x);
-    const p10 = t - 1.2816 * sigma * 1.15 + lo10, p90 = t + 1.2816 * sigma * 0.9 + hi90;
+    // Each tree predicts an absolute residual from the physical core, not an offset
+    // from the corrected median. Remove the median already included in t before
+    // adding either tail, and guard against independently fitted quantiles crossing.
+    const lo10 = correction.p10;
+    const hi90 = correction.p90;
+    const p10 = t - 1.2816 * sigma * 1.15 + lo10 - medianCorrection;
+    const p90 = t + 1.2816 * sigma * 0.9 + hi90 - medianCorrection;
 
     // Humidity at the target: dewpoint drops more slowly than temperature with height; in
     // precipitation the air is near saturation regardless.
@@ -212,28 +246,51 @@
     }
 
     // Freezing level and snow level by search up and down the column.
-    const tAt = (z) => ref.t + lapse.g * (z - ref.z) / KM + (s.bias && isFinite(s.bias.t) ? s.bias.t * Math.max(0, Math.min(0.8, s.bias.w)) : 0);
+    const tAt = (z) => columnTemperature(z) + reportAdjustment;
     const rhAt = (z) => { const tt = tAt(z); let r = rhFrom(tt, tdRef - 1.8 * (z - ref.z) / KM); if ((s.precipChance || 0) >= 0.6) r = Math.max(r, 93); return r; };
     const freezing = solve(z => tAt(z), 0, ref.z - 3000, ref.z + 6000);
     let snowLevel = solve(z => 0.5 - pSnow(tAt(z), rhAt(z), k), 0, ref.z - 3000, ref.z + 6000);
-    if (isFinite(s.snowLevel)) snowLevel = isFinite(snowLevel) ? 0.5 * snowLevel + 0.5 * s.snowLevel : s.snowLevel;
+    if (Number.isFinite(s.snowLevel)) snowLevel = isFinite(snowLevel) ? 0.5 * snowLevel + 0.5 * s.snowLevel : s.snowLevel;
 
     return {
       z: zTarget, t, p10, p90, rh, wetBulb: wetBulb(t, rh), pSnow: ps, type,
       precipChance: s.precipChance || 0, freezingLevel: freezing, snowLevel,
-      wind: wind(ref, zTarget, ter), lapse, notes, model: W().version
+      wind: wind(ref, zTarget, ter), lapse, notes, model: W().version,
+      correctionApplied: correction.applied, temperatureCorrection: medianCorrection
     };
   }
 
-  /** Height where f(z) crosses zero (f decreasing or increasing), by bisection; NaN if none. */
+  /** A verified root, not merely a sign change: tree/support boundaries can jump.
+   * If the broad bisection lands on a discontinuity, try narrower brackets for a
+   * genuine root. Return unavailable when no root is found, rather than inventing
+   * a freezing/snow level at the edge of the learned model's support. */
   function solve(f, target, lo, hi) {
-    let a = lo, b = hi, fa = f(a) - target, fb = f(b) - target;
-    if (!isFinite(fa) || !isFinite(fb) || fa * fb > 0) return NaN;
-    for (let i = 0; i < 40; i++) {
-      const m = (a + b) / 2, fm = f(m) - target;
-      if (fa * fm <= 0) { b = m; fb = fm; } else { a = m; fa = fm; }
+    const refine = (left, right, fl, fr) => {
+      if (!Number.isFinite(fl) || !Number.isFinite(fr) || fl * fr > 0) return NaN;
+      if (Math.abs(fl) < 1e-7) return left;
+      if (Math.abs(fr) < 1e-7) return right;
+      let a = left, b = right, fa = fl;
+      for (let i = 0; i < 40; i++) {
+        const m = (a + b) / 2, fm = f(m) - target;
+        if (!Number.isFinite(fm)) return NaN;
+        if (Math.abs(fm) < 1e-7) return m;
+        if (fa * fm <= 0) b = m; else { a = m; fa = fm; }
+      }
+      const root = (a + b) / 2;
+      return Math.abs(f(root) - target) < 1e-6 ? root : NaN;
+    };
+    const first = f(lo) - target, last = f(hi) - target;
+    const direct = refine(lo, hi, first, last);
+    if (Number.isFinite(direct)) return direct;
+    const steps = Math.min(600, Math.max(1, Math.ceil((hi - lo) / 50)));
+    let previous = lo, fp = first;
+    for (let i = 1; i <= steps; i++) {
+      const next = lo + (hi - lo) * i / steps, fn = f(next) - target;
+      const root = refine(previous, next, fp, fn);
+      if (Number.isFinite(root)) return root;
+      previous = next; fp = fn;
     }
-    return (a + b) / 2;
+    return NaN;
   }
 
   // ------------------------------------------------------------------ Trail report text
@@ -275,6 +332,6 @@
     return { core, x: features(Object.assign({}, s, { rh: ref.rh, windMs: ref.windMs, sky: ref.sky }), dzKm, lapse, ter), names: W().features };
   }
 
-  const BcWx = { estimate, explain, wetBulb, dewpoint, pSnow, pairedLapse, lapseFor, terrain, wind, readReport, solve, LAPSE, trees };
+  const BcWx = { estimate, explain, wetBulb, dewpoint, pSnow, pairedLapse, lapseFor, terrain, wind, readReport, solve, LAPSE, trees, residuals };
   root.BcWx = BcWx;
 })(typeof window !== 'undefined' ? window : globalThis);

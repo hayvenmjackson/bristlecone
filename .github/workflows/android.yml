@@ -22,6 +22,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Test shared weather model
+        run: |
+          node tools/jstest/weather-learned.test.js
+          node tools/jstest/weather-trained.test.js
+          node tools/jstest/weather-integration.test.js
       - name: Build
         run: |
           chmod +x gradlew
@@ -42,4 +47,5 @@ jobs:
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" --notes-file ".github/release-notes/$TAG.md"
           fi
           cp "$(ls app/build/outputs/apk/debug/*.apk | head -1)" "Bristlecone-${TAG#v}-android.apk"
-          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-android.apk" && break; sleep 15; done
+          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-android.apk" && exit 0; sleep 15; done
+          exit 1

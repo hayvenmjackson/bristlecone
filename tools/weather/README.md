@@ -42,10 +42,29 @@ Quantile gradient-boosted trees (150 trees, depth 3) for the core's temperature 
 
 ```
 node tools/weather/build_dataset.js observations.jsonl > rows.csv
-python3 tools/weather/train.py rows.csv
+python3 tools/weather/train.py rows.csv --report evaluation.json
 ```
 
-`train.py` tests on held-out stations (every station predicted by a model that never saw it) and refuses to write weights that do not beat the core alone. It also refits the rain/snow coefficients when there are at least 200 labeled rain or snow rows.
+`train.py` now tests on held-out stations, a later time block with a one-hour gap, and later hours at unseen stations. It runs the exported JavaScript trees through the same support gate used on the phone. Each fold derives all support bounds from its training rows only. All three splits must improve both row-weighted and station-balanced mean absolute error, or the script refuses to replace the weights. There is no force override. Rain/snow coefficients remain unchanged until separately validated precipitation labels are available.
+
+### Bundled 1.4.1 pilot
+
+The first correction uses 187 real observations from 31 public NWS stations on October 23, 2026. The frozen inputs, source hashes and limitations are in `data/`; evaluation is in `evaluations/nws-pilot-2026-10-23.json`. This is preliminary, single-day evidence. Later-hour gains are very small and no seasonal accuracy or calibrated uncertainty claim is made.
+
+The runtime requires NWS data, terrain and inputs inside the fitted feature, reference-temperature and target-elevation ranges. It declines to add the pilot correction when paired stations or an existing nearby-station bias are present. The trained month is October and grid-to-target elevation difference is only about -57 to +187 metres; other conditions retain the physical model. Training station elevations of 3-3,026 m do not validate large summit extrapolations. The app reports `correctionApplied` and `temperatureCorrection` in its estimate object for verification.
+
+To reproduce the candidate (Python 3.12, Node.js, and pinned dependencies):
+
+```sh
+python -m pip install -r tools/weather/requirements.txt
+node tools/weather/build_dataset.js tools/weather/data/nws-pilot-2026-10-23.jsonl > rows.csv
+python tools/weather/train.py rows.csv --evaluate-only --report evaluation.json
+# Omit --evaluate-only only after reviewing the scope and all validation results.
+node tools/jstest/weather-learned.test.js
+node tools/jstest/weather-trained.test.js
+```
+
+The runtime also handles missing snow levels and temperature-free trail reports as missing values, counts learned quantile residuals once, and compares reported temperatures against the complete corrected column. Snow/freezing solvers reject sign changes caused only by discontinuities and verify a genuine root before displaying a height. A missing crossing remains unavailable. Forecast age uses the original issue time even for freshly fetched responses.
 
 **Training data to collect first:** SNOTEL hourly temperature (Mountain West), NWS ASOS at summits and passes, and Mount Washington-type summit stations where licensing allows, each matched to the NWS grid forecast valid at that hour (archive the grid JSON hourly for the season; the API does not serve past forecasts).
 

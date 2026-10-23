@@ -19,6 +19,11 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Test shared weather model
+        run: |
+          node tools/jstest/weather-learned.test.js
+          node tools/jstest/weather-trained.test.js
+          node tools/jstest/weather-integration.test.js
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -31,10 +36,15 @@ jobs:
         working-directory: ios
         run: |
           set -o pipefail
+          set +e
           xcodebuild -project Bristlecone.xcodeproj -scheme Bristlecone -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee build.log | grep -E "error:|warning: .*Bristlecone|BUILD (SUCCEEDED|FAILED)" || true
+            build > build.log 2>&1
+          build_status=$?
+          set -e
+          grep -E "error:|warning: .*Bristlecone|BUILD (SUCCEEDED|FAILED)" build.log || true
+          test "$build_status" -eq 0
           test -d build/Build/Products/Release-iphoneos/Bristlecone.app
 
       - name: Package the .ipa
@@ -63,7 +73,8 @@ jobs:
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" --notes-file ".github/release-notes/$TAG.md"
           fi
           cp ios/Bristlecone-unsigned.ipa "Bristlecone-${TAG#v}-ios-unsigned.ipa"
-          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-ios-unsigned.ipa" && break; sleep 15; done
+          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-ios-unsigned.ipa" && exit 0; sleep 15; done
+          exit 1
 
       - name: Upload the build log
         if: always()

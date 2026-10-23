@@ -1,0 +1,915 @@
+{
+  "accepted": true,
+  "rows": 187,
+  "stations": 31,
+  "datasetSha256": "e5c22c2339be4ec202496b0fd918226c66fa872b96f800d4ca6f75b2835247d5",
+  "sklearnVersion": "1.7.2",
+  "parameters": {
+    "n_estimators": 150,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "min_samples_leaf": 40,
+    "subsample": 0.8,
+    "random_state": 7
+  },
+  "firstObservationUTC": "2026-10-23T04:55:00+00:00",
+  "lastObservationUTC": "2026-10-23T17:40:00+00:00",
+  "chronologicalCutoffUTC": "2026-10-23T13:00:00+00:00",
+  "gapHours": 1,
+  "chronologicalTrainingRows": 69,
+  "chronologicalTrainingStations": 17,
+  "heldOutStationPartitions": [
+    {
+      "testStation": "KASE",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KAVL",
+      "trainRows": 179,
+      "trainStations": 30,
+      "testRows": 8
+    },
+    {
+      "testStation": "KBIH",
+      "trainRows": 176,
+      "trainStations": 30,
+      "testRows": 11
+    },
+    {
+      "testStation": "KBML",
+      "trainRows": 175,
+      "trainStations": 30,
+      "testRows": 12
+    },
+    {
+      "testStation": "KBTV",
+      "trainRows": 179,
+      "trainStations": 30,
+      "testRows": 8
+    },
+    {
+      "testStation": "KBZN",
+      "trainRows": 185,
+      "trainStations": 30,
+      "testRows": 2
+    },
+    {
+      "testStation": "KCON",
+      "trainRows": 175,
+      "trainStations": 30,
+      "testRows": 12
+    },
+    {
+      "testStation": "KDEN",
+      "trainRows": 175,
+      "trainStations": 30,
+      "testRows": 12
+    },
+    {
+      "testStation": "KEGE",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KFLG",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGCN",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGEG",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGUC",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KHLN",
+      "trainRows": 185,
+      "trainStations": 30,
+      "testRows": 2
+    },
+    {
+      "testStation": "KIZG",
+      "trainRows": 176,
+      "trainStations": 30,
+      "testRows": 11
+    },
+    {
+      "testStation": "KJAC",
+      "trainRows": 185,
+      "trainStations": 30,
+      "testRows": 2
+    },
+    {
+      "testStation": "KLEB",
+      "trainRows": 175,
+      "trainStations": 30,
+      "testRows": 12
+    },
+    {
+      "testStation": "KLXV",
+      "trainRows": 183,
+      "trainStations": 30,
+      "testRows": 4
+    },
+    {
+      "testStation": "KMMH",
+      "trainRows": 181,
+      "trainStations": 30,
+      "testRows": 6
+    },
+    {
+      "testStation": "KMWN",
+      "trainRows": 177,
+      "trainStations": 30,
+      "testRows": 10
+    },
+    {
+      "testStation": "KPSP",
+      "trainRows": 173,
+      "trainStations": 30,
+      "testRows": 14
+    },
+    {
+      "testStation": "KRDD",
+      "trainRows": 178,
+      "trainStations": 30,
+      "testRows": 9
+    },
+    {
+      "testStation": "KRNO",
+      "trainRows": 180,
+      "trainStations": 30,
+      "testRows": 7
+    },
+    {
+      "testStation": "KROA",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KSEA",
+      "trainRows": 176,
+      "trainStations": 30,
+      "testRows": 11
+    },
+    {
+      "testStation": "KSFO",
+      "trainRows": 177,
+      "trainStations": 30,
+      "testRows": 10
+    },
+    {
+      "testStation": "KSHD",
+      "trainRows": 184,
+      "trainStations": 30,
+      "testRows": 3
+    },
+    {
+      "testStation": "KSLC",
+      "trainRows": 185,
+      "trainStations": 30,
+      "testRows": 2
+    },
+    {
+      "testStation": "KSLK",
+      "trainRows": 183,
+      "trainStations": 30,
+      "testRows": 4
+    },
+    {
+      "testStation": "KTRI",
+      "trainRows": 186,
+      "trainStations": 30,
+      "testRows": 1
+    },
+    {
+      "testStation": "KTVL",
+      "trainRows": 180,
+      "trainStations": 30,
+      "testRows": 7
+    }
+  ],
+  "laterUnseenStationPartitions": [
+    {
+      "testStation": "KASE",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KAVL",
+      "trainRows": 67,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KBIH",
+      "trainRows": 64,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KBML",
+      "trainRows": 63,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KBTV",
+      "trainRows": 67,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KBZN",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 2
+    },
+    {
+      "testStation": "KCON",
+      "trainRows": 63,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KDEN",
+      "trainRows": 63,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KEGE",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KFLG",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGCN",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGEG",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KGUC",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KHLN",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 2
+    },
+    {
+      "testStation": "KIZG",
+      "trainRows": 63,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KJAC",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 2
+    },
+    {
+      "testStation": "KLEB",
+      "trainRows": 63,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KLXV",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 4
+    },
+    {
+      "testStation": "KMMH",
+      "trainRows": 68,
+      "trainStations": 16,
+      "testRows": 4
+    },
+    {
+      "testStation": "KMWN",
+      "trainRows": 64,
+      "trainStations": 16,
+      "testRows": 4
+    },
+    {
+      "testStation": "KPSP",
+      "trainRows": 61,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KRDD",
+      "trainRows": 66,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KRNO",
+      "trainRows": 68,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KROA",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KSEA",
+      "trainRows": 64,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KSFO",
+      "trainRows": 65,
+      "trainStations": 16,
+      "testRows": 5
+    },
+    {
+      "testStation": "KSHD",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 3
+    },
+    {
+      "testStation": "KSLC",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 2
+    },
+    {
+      "testStation": "KSLK",
+      "trainRows": 67,
+      "trainStations": 16,
+      "testRows": 1
+    },
+    {
+      "testStation": "KTRI",
+      "trainRows": 69,
+      "trainStations": 17,
+      "testRows": 1
+    },
+    {
+      "testStation": "KTVL",
+      "trainRows": 68,
+      "trainStations": 16,
+      "testRows": 5
+    }
+  ],
+  "predictionPath": "Exported JS trees and runtime support gate; support bounds are derived from each training partition only.",
+  "sources": [
+    "nws"
+  ],
+  "evaluation": {
+    "heldOutStations": {
+      "rows": 187,
+      "stations": 31,
+      "correctionAppliedRows": 138,
+      "coreMaeC": 2.160287860962567,
+      "correctedMaeC": 1.757674100436898,
+      "coreStationMeanMaeC": 1.8958311193967323,
+      "correctedStationMeanMaeC": 1.6846522041964012,
+      "residualBandCoverage": 0.48663101604278075,
+      "coreDisplayedBandCoverage": 0.5508021390374331,
+      "displayedBandCoverage": 0.8556149732620321,
+      "perStation": {
+        "KASE": {
+          "rows": 1,
+          "coreMaeC": 4.07198,
+          "correctedMaeC": 4.07198
+        },
+        "KAVL": {
+          "rows": 8,
+          "coreMaeC": 1.8827475,
+          "correctedMaeC": 1.6410741511875
+        },
+        "KBIH": {
+          "rows": 11,
+          "coreMaeC": 2.0809718181818186,
+          "correctedMaeC": 1.5155439771272727
+        },
+        "KBML": {
+          "rows": 12,
+          "coreMaeC": 2.6165616666666667,
+          "correctedMaeC": 1.2781718882999993
+        },
+        "KBTV": {
+          "rows": 8,
+          "coreMaeC": 1.520405,
+          "correctedMaeC": 1.520405
+        },
+        "KBZN": {
+          "rows": 2,
+          "coreMaeC": 0.27777999999999997,
+          "correctedMaeC": 2.2248242654999997
+        },
+        "KCON": {
+          "rows": 12,
+          "coreMaeC": 3.7380299999999997,
+          "correctedMaeC": 3.1730918630833336
+        },
+        "KDEN": {
+          "rows": 12,
+          "coreMaeC": 1.6075824999999997,
+          "correctedMaeC": 1.8876891470416666
+        },
+        "KEGE": {
+          "rows": 1,
+          "coreMaeC": 4.02559,
+          "correctedMaeC": 2.464567552
+        },
+        "KFLG": {
+          "rows": 1,
+          "coreMaeC": 0.10319,
+          "correctedMaeC": 1.859267083799999
+        },
+        "KGCN": {
+          "rows": 1,
+          "coreMaeC": 0.55556,
+          "correctedMaeC": 1.6224744419000026
+        },
+        "KGEG": {
+          "rows": 1,
+          "coreMaeC": 0.64669,
+          "correctedMaeC": 0.4400897818999987
+        },
+        "KGUC": {
+          "rows": 1,
+          "coreMaeC": 1.3018,
+          "correctedMaeC": 1.4959000482000007
+        },
+        "KHLN": {
+          "rows": 2,
+          "coreMaeC": 1.9511500000000002,
+          "correctedMaeC": 1.9511500000000002
+        },
+        "KIZG": {
+          "rows": 11,
+          "coreMaeC": 2.740075454545454,
+          "correctedMaeC": 1.7897256054181823
+        },
+        "KJAC": {
+          "rows": 2,
+          "coreMaeC": 0.68333,
+          "correctedMaeC": 1.2976340181000012
+        },
+        "KLEB": {
+          "rows": 12,
+          "coreMaeC": 2.552864166666667,
+          "correctedMaeC": 2.4626009854333337
+        },
+        "KLXV": {
+          "rows": 4,
+          "coreMaeC": 0.8711,
+          "correctedMaeC": 0.8711
+        },
+        "KMMH": {
+          "rows": 6,
+          "coreMaeC": 3.3433983333333335,
+          "correctedMaeC": 1.9938497335666663
+        },
+        "KMWN": {
+          "rows": 10,
+          "coreMaeC": 1.683458,
+          "correctedMaeC": 1.683458
+        },
+        "KPSP": {
+          "rows": 14,
+          "coreMaeC": 1.5098335714285713,
+          "correctedMaeC": 1.3524423220714286
+        },
+        "KRDD": {
+          "rows": 9,
+          "coreMaeC": 2.5790133333333336,
+          "correctedMaeC": 1.9609418534111107
+        },
+        "KRNO": {
+          "rows": 7,
+          "coreMaeC": 2.622908571428571,
+          "correctedMaeC": 1.040359015257142
+        },
+        "KROA": {
+          "rows": 1,
+          "coreMaeC": 0.40754,
+          "correctedMaeC": 0.40754
+        },
+        "KSEA": {
+          "rows": 11,
+          "coreMaeC": 1.59242,
+          "correctedMaeC": 0.5298795656181815
+        },
+        "KSFO": {
+          "rows": 10,
+          "coreMaeC": 1.143488,
+          "correctedMaeC": 1.143488
+        },
+        "KSHD": {
+          "rows": 3,
+          "coreMaeC": 1.91335,
+          "correctedMaeC": 1.5289717711333335
+        },
+        "KSLC": {
+          "rows": 2,
+          "coreMaeC": 1.60517,
+          "correctedMaeC": 0.5683770602499996
+        },
+        "KSLK": {
+          "rows": 4,
+          "coreMaeC": 1.1436025,
+          "correctedMaeC": 1.163234605074999
+        },
+        "KTRI": {
+          "rows": 1,
+          "coreMaeC": 1.15988,
+          "correctedMaeC": 0.4450923089999994
+        },
+        "KTVL": {
+          "rows": 7,
+          "coreMaeC": 4.839294285714287,
+          "correctedMaeC": 4.839294285714287
+        }
+      },
+      "passed": true
+    },
+    "laterHours": {
+      "rows": 102,
+      "stations": 31,
+      "correctionAppliedRows": 16,
+      "coreMaeC": 2.5307399999999998,
+      "correctedMaeC": 2.51520821267451,
+      "coreStationMeanMaeC": 2.2082880806451617,
+      "correctedStationMeanMaeC": 2.1979074606887097,
+      "residualBandCoverage": 0.06862745098039216,
+      "coreDisplayedBandCoverage": 0.5196078431372549,
+      "displayedBandCoverage": 0.5588235294117647,
+      "perStation": {
+        "KASE": {
+          "rows": 1,
+          "coreMaeC": 4.07198,
+          "correctedMaeC": 4.07198
+        },
+        "KAVL": {
+          "rows": 5,
+          "coreMaeC": 2.7683799999999996,
+          "correctedMaeC": 2.7683799999999996
+        },
+        "KBIH": {
+          "rows": 5,
+          "coreMaeC": 3.11102,
+          "correctedMaeC": 3.0714139423200004
+        },
+        "KBML": {
+          "rows": 5,
+          "coreMaeC": 3.329246,
+          "correctedMaeC": 3.329246
+        },
+        "KBTV": {
+          "rows": 5,
+          "coreMaeC": 1.4697559999999998,
+          "correctedMaeC": 1.4697559999999998
+        },
+        "KBZN": {
+          "rows": 2,
+          "coreMaeC": 0.27777999999999997,
+          "correctedMaeC": 0.27777999999999997
+        },
+        "KCON": {
+          "rows": 5,
+          "coreMaeC": 3.872209999999999,
+          "correctedMaeC": 3.872209999999999
+        },
+        "KDEN": {
+          "rows": 5,
+          "coreMaeC": 2.53277,
+          "correctedMaeC": 2.51296697116
+        },
+        "KEGE": {
+          "rows": 1,
+          "coreMaeC": 4.02559,
+          "correctedMaeC": 4.02559
+        },
+        "KFLG": {
+          "rows": 1,
+          "coreMaeC": 0.10319,
+          "correctedMaeC": 0.10319
+        },
+        "KGCN": {
+          "rows": 1,
+          "coreMaeC": 0.55556,
+          "correctedMaeC": 0.55556
+        },
+        "KGEG": {
+          "rows": 1,
+          "coreMaeC": 0.64669,
+          "correctedMaeC": 0.64669
+        },
+        "KGUC": {
+          "rows": 1,
+          "coreMaeC": 1.3018,
+          "correctedMaeC": 1.3018
+        },
+        "KHLN": {
+          "rows": 2,
+          "coreMaeC": 1.9511500000000002,
+          "correctedMaeC": 1.9511500000000002
+        },
+        "KIZG": {
+          "rows": 5,
+          "coreMaeC": 2.9815,
+          "correctedMaeC": 2.9815
+        },
+        "KJAC": {
+          "rows": 2,
+          "coreMaeC": 0.68333,
+          "correctedMaeC": 0.68333
+        },
+        "KLEB": {
+          "rows": 5,
+          "coreMaeC": 2.420924,
+          "correctedMaeC": 2.420924
+        },
+        "KLXV": {
+          "rows": 4,
+          "coreMaeC": 0.8711,
+          "correctedMaeC": 0.8711
+        },
+        "KMMH": {
+          "rows": 4,
+          "coreMaeC": 3.8465625,
+          "correctedMaeC": 3.82180871395
+        },
+        "KMWN": {
+          "rows": 4,
+          "coreMaeC": 2.79684,
+          "correctedMaeC": 2.79684
+        },
+        "KPSP": {
+          "rows": 5,
+          "coreMaeC": 2.32977,
+          "correctedMaeC": 2.29016394232
+        },
+        "KRDD": {
+          "rows": 5,
+          "coreMaeC": 3.191112,
+          "correctedMaeC": 3.15150594232
+        },
+        "KRNO": {
+          "rows": 5,
+          "coreMaeC": 2.5342000000000002,
+          "correctedMaeC": 2.4945939423200003
+        },
+        "KROA": {
+          "rows": 1,
+          "coreMaeC": 0.40754,
+          "correctedMaeC": 0.40754
+        },
+        "KSEA": {
+          "rows": 5,
+          "coreMaeC": 2.444558,
+          "correctedMaeC": 2.40495194232
+        },
+        "KSFO": {
+          "rows": 5,
+          "coreMaeC": 1.8677199999999998,
+          "correctedMaeC": 1.8281139423200004
+        },
+        "KSHD": {
+          "rows": 3,
+          "coreMaeC": 1.91335,
+          "correctedMaeC": 1.91335
+        },
+        "KSLC": {
+          "rows": 2,
+          "coreMaeC": 1.60517,
+          "correctedMaeC": 1.60517
+        },
+        "KSLK": {
+          "rows": 1,
+          "coreMaeC": 2.54169,
+          "correctedMaeC": 2.54169
+        },
+        "KTRI": {
+          "rows": 1,
+          "coreMaeC": 1.15988,
+          "correctedMaeC": 1.15988
+        },
+        "KTVL": {
+          "rows": 5,
+          "coreMaeC": 4.844562,
+          "correctedMaeC": 4.80495594232
+        }
+      },
+      "passed": true
+    },
+    "laterHoursUnseenStations": {
+      "rows": 102,
+      "stations": 31,
+      "correctionAppliedRows": 11,
+      "coreMaeC": 2.5307399999999998,
+      "correctedMaeC": 2.5239397692333334,
+      "coreStationMeanMaeC": 2.2082880806451617,
+      "correctedStationMeanMaeC": 2.203813090076129,
+      "residualBandCoverage": 0.049019607843137254,
+      "coreDisplayedBandCoverage": 0.5196078431372549,
+      "displayedBandCoverage": 0.5588235294117647,
+      "perStation": {
+        "KASE": {
+          "rows": 1,
+          "coreMaeC": 4.07198,
+          "correctedMaeC": 4.07198
+        },
+        "KAVL": {
+          "rows": 5,
+          "coreMaeC": 2.7683799999999996,
+          "correctedMaeC": 2.7683799999999996
+        },
+        "KBIH": {
+          "rows": 5,
+          "coreMaeC": 3.11102,
+          "correctedMaeC": 3.03717808564
+        },
+        "KBML": {
+          "rows": 5,
+          "coreMaeC": 3.329246,
+          "correctedMaeC": 3.329246
+        },
+        "KBTV": {
+          "rows": 5,
+          "coreMaeC": 1.4697559999999998,
+          "correctedMaeC": 1.4697559999999998
+        },
+        "KBZN": {
+          "rows": 2,
+          "coreMaeC": 0.27777999999999997,
+          "correctedMaeC": 0.27777999999999997
+        },
+        "KCON": {
+          "rows": 5,
+          "coreMaeC": 3.872209999999999,
+          "correctedMaeC": 3.872209999999999
+        },
+        "KDEN": {
+          "rows": 5,
+          "coreMaeC": 2.53277,
+          "correctedMaeC": 2.5560577030800005
+        },
+        "KEGE": {
+          "rows": 1,
+          "coreMaeC": 4.02559,
+          "correctedMaeC": 4.02559
+        },
+        "KFLG": {
+          "rows": 1,
+          "coreMaeC": 0.10319,
+          "correctedMaeC": 0.10319
+        },
+        "KGCN": {
+          "rows": 1,
+          "coreMaeC": 0.55556,
+          "correctedMaeC": 0.55556
+        },
+        "KGEG": {
+          "rows": 1,
+          "coreMaeC": 0.64669,
+          "correctedMaeC": 0.64669
+        },
+        "KGUC": {
+          "rows": 1,
+          "coreMaeC": 1.3018,
+          "correctedMaeC": 1.3018
+        },
+        "KHLN": {
+          "rows": 2,
+          "coreMaeC": 1.9511500000000002,
+          "correctedMaeC": 1.9511500000000002
+        },
+        "KIZG": {
+          "rows": 5,
+          "coreMaeC": 2.9815,
+          "correctedMaeC": 2.9815
+        },
+        "KJAC": {
+          "rows": 2,
+          "coreMaeC": 0.68333,
+          "correctedMaeC": 0.68333
+        },
+        "KLEB": {
+          "rows": 5,
+          "coreMaeC": 2.420924,
+          "correctedMaeC": 2.420924
+        },
+        "KLXV": {
+          "rows": 4,
+          "coreMaeC": 0.8711,
+          "correctedMaeC": 0.8711
+        },
+        "KMMH": {
+          "rows": 4,
+          "coreMaeC": 3.8465625,
+          "correctedMaeC": 3.8465625
+        },
+        "KMWN": {
+          "rows": 4,
+          "coreMaeC": 2.79684,
+          "correctedMaeC": 2.79684
+        },
+        "KPSP": {
+          "rows": 5,
+          "coreMaeC": 2.32977,
+          "correctedMaeC": 2.2647305338
+        },
+        "KRDD": {
+          "rows": 5,
+          "coreMaeC": 3.191112,
+          "correctedMaeC": 3.21306642788
+        },
+        "KRNO": {
+          "rows": 5,
+          "coreMaeC": 2.5342000000000002,
+          "correctedMaeC": 2.51607375632
+        },
+        "KROA": {
+          "rows": 1,
+          "coreMaeC": 0.40754,
+          "correctedMaeC": 0.40754
+        },
+        "KSEA": {
+          "rows": 5,
+          "coreMaeC": 2.444558,
+          "correctedMaeC": 2.41759878564
+        },
+        "KSFO": {
+          "rows": 5,
+          "coreMaeC": 1.8677199999999998,
+          "correctedMaeC": 1.8677199999999998
+        },
+        "KSHD": {
+          "rows": 3,
+          "coreMaeC": 1.91335,
+          "correctedMaeC": 1.91335
+        },
+        "KSLC": {
+          "rows": 2,
+          "coreMaeC": 1.60517,
+          "correctedMaeC": 1.60517
+        },
+        "KSLK": {
+          "rows": 1,
+          "coreMaeC": 2.54169,
+          "correctedMaeC": 2.54169
+        },
+        "KTRI": {
+          "rows": 1,
+          "coreMaeC": 1.15988,
+          "correctedMaeC": 1.15988
+        },
+        "KTVL": {
+          "rows": 5,
+          "coreMaeC": 4.844562,
+          "correctedMaeC": 4.844562
+        }
+      },
+      "passed": true
+    }
+  },
+  "precipitationRefitted": false,
+  "scopeNote": "Validation applies only to this dataset; single-day results do not establish seasonal or high-elevation-offset performance."
+}
