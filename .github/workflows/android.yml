@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional existing release tag to rebuild and publish (for example v1.4.2)"
+        required: false
+        default: ""
+        type: string
   # Publishing a GitHub Release (tag v1.3.0 and so on) builds the app and attaches it.
   release:
     types: [published]
@@ -17,7 +23,64 @@ jobs:
     # Pinned: this image ships the Android SDK, so no setup-android step is needed.
     runs-on: ubuntu-24.04
     steps:
+      - name: Resolve immutable source and release target
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.ref_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          source_commit=$GITHUB_SHA
+          if [ -z "${RELEASE_TAG:-}" ]; then
+            echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::A release rebuild requires a version tag such as v1.4.2."
+            exit 1
+          fi
+          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.id')
+          [[ "$release_id" =~ ^[0-9]+$ ]]
+          tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '[.object.type, .object.sha] | @tsv')
+          read -r object_type source_commit <<< "$tag_object"
+          tag_ref_sha=$source_commit
+          for depth in 1 2 3 4 5; do
+            if [ "$object_type" = "commit" ]; then break; fi
+            [ "$object_type" = "tag" ]
+            tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$source_commit" --jq '[.object.type, .object.sha] | @tsv')
+            read -r object_type source_commit <<< "$tag_object"
+          done
+          [ "$object_type" = "commit" ]
+          [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]]
+          if [ "$RELEASE_TAG" = "v1.4.2" ] && [ "$source_commit" != "dbd511670e11e0faa714db95dbdb08951e8a6e23" ]; then
+            echo "::error::The published v1.4.2 source must not change during recovery."
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "release" ] && [ "$source_commit" != "$GITHUB_SHA" ]; then
+            echo "::error::The release tag differs from the event's source commit."
+            exit 1
+          fi
+          echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "tag_ref_sha=$tag_ref_sha" >> "$GITHUB_OUTPUT"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "Verified existing release $RELEASE_TAG at commit $source_commit"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.commit }}
+      - name: Verify checked-out app version
+        env:
+          EXPECTED_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          if [ -n "${RELEASE_TAG:-}" ]; then
+            version_name=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts)
+            test "$version_name" = "${RELEASE_TAG#v}"
+          fi
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -29,7 +92,7 @@ jobs:
           node tools/jstest/weather-integration.test.js
       - name: Restore stable beta signing key
         id: beta_signing
-        if: github.event_name == 'release'
+        if: steps.source.outputs.publish == 'true'
         env:
           BRISTLECONE_BETA_KEYSTORE_B64: ${{ secrets.BRISTLECONE_BETA_KEYSTORE_B64 }}
         run: |
@@ -54,8 +117,10 @@ jobs:
           fi
           echo "Verified beta certificate SHA-256: $certificate_sha256"
       - name: Build
+        env:
+          PUBLISH_RELEASE: ${{ steps.source.outputs.publish }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" != "release" ]; then
+          if [ "$PUBLISH_RELEASE" != "true" ]; then
             echo "::notice::Non-release builds use an ephemeral debug key and are not an upgrade channel."
           fi
           chmod +x gradlew
@@ -64,24 +129,40 @@ jobs:
         if: always() && steps.beta_signing.outputs.restored == 'true'
         run: rm -f -- "$HOME/.android/debug.keystore"
       - name: Verify published APK signing identity
-        if: github.event_name == 'release'
+        if: steps.source.outputs.publish == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
         run: |
           set -euo pipefail
-          apksigner_path=
-          for candidate in "${ANDROID_HOME:?}/build-tools/"*/apksigner; do
-            if [ -x "$candidate" ]; then apksigner_path=$candidate; fi
-          done
-          test -n "$apksigner_path"
+          build_tools="${ANDROID_HOME:?}/build-tools/35.0.0"
+          apksigner_path="$build_tools/apksigner"
+          if [ ! -x "$apksigner_path" ] || [ ! -x "$build_tools/aapt" ]; then
+            echo "::error::The pinned Android Build-tools 35.0.0 verifier is unavailable."
+            exit 1
+          fi
+          echo "Verifying with Android Build-tools 35.0.0"
           apk_files=(app/build/outputs/apk/debug/*.apk)
           test "${#apk_files[@]}" -eq 1
           test -f "${apk_files[0]}"
-          signer_output=$("$apksigner_path" verify --print-certs "${apk_files[0]}")
-          signer_count=$(printf '%s\n' "$signer_output" | grep -c -E '^Signer #[0-9]+ certificate SHA-256 digest:')
-          certificate_sha256=$(printf '%s\n' "$signer_output" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          if [ "$signer_count" -ne 1 ] || [ "$certificate_sha256" != "0ecac4dde2389f7daae0c33b964deb191dae1d23735ca9dba2b64a99f1af623d" ]; then
+          if signer_output=$("$apksigner_path" verify --verbose --print-certs "${apk_files[0]}" 2>&1); then
+            signer_status=0
+          else
+            signer_status=$?
+          fi
+          printf '%s\n' "$signer_output"
+          if [ "$signer_status" -ne 0 ]; then
+            echo "::error::APK signature verification failed; the APK will not be uploaded."
+            exit "$signer_status"
+          fi
+          signer_count=$(printf '%s\n' "$signer_output" | tr -d '\r' | sed -n 's/^Number of signers: \([0-9][0-9]*\)$/\1/p')
+          certificate_sha256=$(printf '%s\n' "$signer_output" | tr -d '\r' | sed -nE 's/^.* certificate SHA-256 digest: ([0-9a-fA-F]{64})$/\1/p' | tr 'A-F' 'a-f' | sort -u)
+          if [ "$signer_count" != "1" ] || [ "$certificate_sha256" != "0ecac4dde2389f7daae0c33b964deb191dae1d23735ca9dba2b64a99f1af623d" ]; then
             echo "::error::The built APK does not have the pinned beta signing identity."
             exit 1
           fi
+          badging=$("$build_tools/aapt" dump badging "${apk_files[0]}")
+          version_name=$(printf '%s\n' "$badging" | sed -n "s/^package: .* versionName='\([^']*\)'.*/\1/p")
+          test "$version_name" = "${RELEASE_TAG#v}"
           echo "Verified APK beta certificate SHA-256: $certificate_sha256"
       - uses: actions/upload-artifact@v4
         with:
@@ -89,15 +170,31 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Attach to the public release
-        if: github.event_name == 'release'
+        if: steps.source.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.source.outputs.tag }}
+          EXPECTED_COMMIT: ${{ steps.source.outputs.commit }}
+          EXPECTED_TAG_REF_SHA: ${{ steps.source.outputs.tag_ref_sha }}
+          EXPECTED_RELEASE_ID: ${{ steps.source.outputs.release_id }}
         run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          current_ref_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')
+          current_release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.id')
+          test "$current_ref_sha" = "$EXPECTED_TAG_REF_SHA"
+          test "$current_release_id" = "$EXPECTED_RELEASE_ID"
+          asset_name="Bristlecone-${TAG#v}-android.apk"
+          existing_asset_names=$(gh api "repos/$GITHUB_REPOSITORY/releases/$current_release_id/assets" --paginate --jq '.[].name')
+          if printf '%s\n' "$existing_asset_names" | grep -Fxq -- "$asset_name"; then
+            echo "::error::The Android release asset already exists; refusing to replace it."
+            exit 1
+          fi
           # Release notes come from .github/release-notes/<tag>.md when that file exists.
-          if [ -f ".github/release-notes/$TAG.md" ]; then
+          # A recovery rebuild preserves the existing release's title and notes.
+          if [ "$GITHUB_EVENT_NAME" = "release" ] && [ -f ".github/release-notes/$TAG.md" ]; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Bristlecone ${TAG#v}" --notes-file ".github/release-notes/$TAG.md"
           fi
-          cp "$(ls app/build/outputs/apk/debug/*.apk | head -1)" "Bristlecone-${TAG#v}-android.apk"
-          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "Bristlecone-${TAG#v}-android.apk" && exit 0; sleep 15; done
+          cp "$(ls app/build/outputs/apk/debug/*.apk | head -1)" "$asset_name"
+          for i in 1 2 3 4 5; do gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$asset_name" && exit 0; sleep 15; done
           exit 1
