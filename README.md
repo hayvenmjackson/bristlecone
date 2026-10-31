@@ -2,6 +2,8 @@
 
 Trail maps for the US and Canada, drawn from public data. *Know the ground.*
 
+An open-source app from [Krummholz AI](https://krummholz.ai), based in Belfast, Maine.
+
 Android (8.0 and newer) and iPhone and iPad (iOS 16 and newer). One map UI, built on a bundled MapLibre GL JS engine, runs inside a small native shell on each platform: Java on Android, Swift on iOS. No third-party native libraries, no account, no tracking.
 
 ## Install the test build
@@ -152,4 +154,4 @@ mkdir -p .sdk && cp <android-sdk>/platforms/android-34/android.jar .sdk/android-
 
 Map data © OpenStreetMap contributors (ODbL). OpenMapTiles, OpenFreeMap, USGS, NRCan (Open Government Licence Canada), ECCC (including HRDPS and SWOB), US Census Bureau, NPS, NWS, USDA NRCS SNOTEL, NIFC, Avalanche.org, Avalanche Canada, OpenBeta, OpenTopoMap (CC-BY-SA). MapLibre GL JS and maplibre-contour (BSD-3-Clause). Overpass and Cormorant Garamond (SIL OFL). NAIP (USGS), Sentinel-2 cloudless 2016 by EOX (contains modified Copernicus Sentinel data, CC BY-SA 4.0), Wikipedia, Wikimedia Commons (photos credited individually).
 
-Designed by Krummholz AI LLC.
+Designed by [Krummholz AI LLC](https://krummholz.ai).
